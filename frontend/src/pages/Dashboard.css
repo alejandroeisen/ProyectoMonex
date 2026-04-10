@@ -1,0 +1,124 @@
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #f0f2f5;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 56px;
+    background: #1a1a2e;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.dashboard-brand {
+    font-weight: 600;
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.logout-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+}
+
+.logout-btn:hover {
+    border-color: #aaa;
+    color: #fff;
+}
+
+.dashboard-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 210px;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    padding: 1rem 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.sidebar-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9ca3af;
+    padding: 0 1rem;
+    margin: 0 0 0.5rem;
+}
+
+.sidebar-empty {
+    font-size: 0.85rem;
+    color: #aaa;
+    padding: 0 1rem;
+}
+
+.sidebar-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.6rem 1rem;
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.sidebar-item:hover {
+    background: #f9fafb;
+}
+
+.sidebar-item.active {
+    background: #eef2ff;
+    color: #4f46e5;
+    font-weight: 500;
+}
+
+.dashboard-main {
+    flex: 1;
+    padding: 1.5rem;
+    overflow: auto;
+}
+
+.dash-error {
+    color: #dc2626;
+    font-size: 0.9rem;
+}
+
+.dash-loading {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.dash-empty {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-top: 2rem;
+    text-align: center;
+}
