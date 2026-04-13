@@ -98,12 +98,29 @@ npm run dev
 ```
 
 ## What's next (not yet built)
+
+### Core / unblocked
 - `excel_sync_windows.py` — win32com script for the mini PC (waiting on sheet layout confirmation)
+  - Must include: file-based logging with rotation (not just terminal output)
+  - Must include: graceful handling of Excel open but Xenith not yet connected (wait, don't write stale data)
 - Dashboard/summary view in the frontend (waiting on contents of their summary sheet)
-- Windows setup on mini PC: Task Scheduler auto-start, PostgreSQL install, Python env
-- Outside access: Dynamic DNS + port forwarding on office router, or WireGuard VPN
 - Role-based access (column `role` already exists in users table, just not enforced yet)
 - Proper user management (add/remove users — currently only seeded via init_db.py)
+
+### Monitoring / observability
+- **Admin monitoring page** (frontend, role-gated to `admin`): accessible via URL, shows:
+  - Last sync time and whether it's recent (stale = warning)
+  - Recent log entries from the sync script (last N lines)
+  - System status (DB reachable, Excel running, Xenith connected)
+  - This is the first line of troubleshooting — no RDP needed for common issues
+- **Extended `/health` endpoint** (backend): returns last sync timestamp, row counts, error state
+  - Admin page reads from this endpoint
+- **RDP remains essential** as fallback for when the URL itself is unreachable (network/power issues)
+
+### Deployment
+- Windows setup on mini PC: Task Scheduler auto-start for sync script + backend + PostgreSQL
+- Outside access: Dynamic DNS + port forwarding on office router, or WireGuard VPN
+- RDP enabled on mini PC during setup (one-time config, documented in handoff)
 
 ## Pending decisions / blockers
 - **Sheet layout**: pushing client to use one table per sheet (currently multiple tables per sheet — incompatible with current data model)
