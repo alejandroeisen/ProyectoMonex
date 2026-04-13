@@ -4,34 +4,41 @@
 Internal financial dashboard for Intelimed. Replaces an Excel-based workflow so the team can access live market data (stocks, exchange rates, etc.) from outside the office. Not public-facing — authenticated access only.
 
 ## Current status
-Working dev mockup. Login, sheet selector, and data tables are functional. Sync script reads a local Excel file and writes to PostgreSQL. Frontend auto-refresh (polling) has not been implemented yet.
+Working dev mockup. Login, sheet selector, data tables with search/sort, and frontend auto-refresh (every 30s) are functional. Sync script reads a local Excel file and writes to PostgreSQL on a loop.
 
-## The data source problem
-The real data comes from **Metastock Xenith** — a financial data platform that feeds live data into Excel via an RTD (Real-Time Data) COM add-in. It is NOT a REST API. The Excel file lives on a physical office PC. The plan is:
-- Keep Excel running on the office PC as normal (team continues using it)
-- Run the Python sync script on the same PC, reading from the live Excel instance via COM (win32com)
-- For now the sync script uses openpyxl on a static file — COM integration comes later once API/Excel access is confirmed
+## Hardware setup (decided)
+- **Work PC**: Xenith license #1 + Excel. Team uses this for daily work. No scripts run here — untouched.
+- **Mini PC** (to be purchased, ~$600 + UPS): Xenith license #2 + Excel + sync script + PostgreSQL + FastAPI. Runs headless 24/7. This is the server AND the data source. Accessible from outside the office.
+
+## The data source
+**Metastock Xenith** feeds live RTD data into Excel via a COM add-in. Not a REST API.
+- Mini PC runs its own Excel instance with its own Xenith license — fully independent from the work PC
+- Sync script reads from the live Excel process on the mini PC via **win32com** (COM automation)
+- No network shares, no dependency on the work PC being on
+- For dev/testing on Linux: openpyxl reads a static `.xlsx` file as a stand-in
 
 ## Architecture
 ```
-[Metastock Xenith RTD] → [Excel on office PC]
-                                |
-                        [sync/excel_sync.py]  ← reads Excel, runs on schedule
-                                |
-                        [PostgreSQL database]
-                                |
-                        [FastAPI backend]  ← JWT auth, serves data
-                                |
-                        [React frontend]  ← login → sheet selector → table
+[Work PC]                        [Mini PC — dedicated server]
+Xenith + Excel                   Xenith + Excel (live RTD data)
+Team works here                       |
+(independent)                  [sync/excel_sync_windows.py]  ← win32com, reads live Excel
+                                      |
+                               [PostgreSQL]
+                                      |
+                               [FastAPI backend]  ← JWT auth
+                                      |
+                               [React frontend]
+                                      ↑
+                          [Users, from anywhere, authenticated]
 ```
-
-Data is stored as JSONB in PostgreSQL (flexible schema — each Excel sheet has different headers, so no fixed columns).
 
 ## Tech stack
 - **Backend**: Python, FastAPI, psycopg2, python-jose (JWT), bcrypt
 - **Frontend**: React (Vite), plain CSS
-- **Database**: PostgreSQL (JSONB for row data)
-- **Sync script**: Python, openpyxl (→ win32com later for live Excel)
+- **Database**: PostgreSQL (JSONB for row data — flexible schema, different headers per sheet)
+- **Sync script (dev/Linux)**: `sync/excel_sync.py` — openpyxl, reads static .xlsx
+- **Sync script (production/Windows)**: `sync/excel_sync_windows.py` — win32com, reads live Excel — NOT YET BUILT
 - **Auth**: JWT tokens stored in localStorage, 8-hour expiry
 
 ## Project structure
@@ -49,7 +56,8 @@ ProyectoIlanErgas/
 │   ├── requirements.txt
 │   └── .env.example          ← copy to .env and fill in credentials
 ├── sync/
-│   └── excel_sync.py         ← reads Excel → PostgreSQL. Pass --loop for continuous sync
+│   ├── excel_sync.py         ← Linux dev: openpyxl on static file. Pass --loop for continuous
+│   └── excel_sync_windows.py ← Windows prod: win32com on live Excel (NOT YET BUILT)
 └── frontend/
     └── src/
         ├── App.jsx            ← auth state, routes between Login and Dashboard
@@ -75,12 +83,12 @@ cp .env.example .env          # fill in your values
 venv/bin/python init_db.py    # creates tables + admin user (admin / admin123)
 venv/bin/uvicorn app.main:app --reload
 
-# 3. Sync script
+# 3. Sync script (Linux dev)
 cd sync
 python3 -m venv venv
 venv/bin/pip install openpyxl psycopg2-binary python-dotenv
-venv/bin/python excel_sync.py ../fake_data.xlsx         # run once
-venv/bin/python excel_sync.py ../fake_data.xlsx --loop  # run continuously
+venv/bin/python excel_sync.py ../datos_fake.xlsx         # run once
+venv/bin/python excel_sync.py ../datos_fake.xlsx --loop  # run continuously
 
 # 4. Frontend
 cd frontend
@@ -90,16 +98,22 @@ npm run dev
 ```
 
 ## What's next (not yet built)
-- Frontend auto-refresh (polling every 30-60s so data updates without page reload)
-- COM-based Excel reading via win32com (replaces openpyxl, reads live Xenith data)
-- Windows Task Scheduler setup for the sync script (auto-start on PC boot)
-- VPS deployment (likely DigitalOcean or Hetzner, ~$6/mo)
+- `excel_sync_windows.py` — win32com script for the mini PC (waiting on sheet layout confirmation)
+- Dashboard/summary view in the frontend (waiting on contents of their summary sheet)
+- Windows setup on mini PC: Task Scheduler auto-start, PostgreSQL install, Python env
+- Outside access: Dynamic DNS + port forwarding on office router, or WireGuard VPN
 - Role-based access (column `role` already exists in users table, just not enforced yet)
 - Proper user management (add/remove users — currently only seeded via init_db.py)
 
+## Pending decisions / blockers
+- **Sheet layout**: pushing client to use one table per sheet (currently multiple tables per sheet — incompatible with current data model)
+- **Summary/dashboard sheet**: first sheet is a non-tabular summary — plan is to rebuild it as a proper web dashboard view using aggregated data from the other sheets. Waiting on contents.
+- **Outside access method**: dynamic DNS vs VPN — not decided yet
+
 ## Key decisions made
+- **Mini PC over VPS**: client prefers on-premises. Two Xenith licenses — one for work PC, one for mini PC server.
+- **win32com on mini PC**: sync script runs locally on the mini PC, reads its own live Excel instance. Clean — no network shares, no dependency on work PC.
 - **JSONB storage**: each row stored as a JSON blob because sheets have different headers. Column list stored separately in `sheets.columns`.
 - **No ORM**: raw psycopg2 with RealDictCursor — simple enough that SQLAlchemy would be overhead.
 - **bcrypt directly**: passlib was dropped because it breaks with newer bcrypt versions.
-- **VPS over mini PC**: recurring ~$6/mo preferred over $600 upfront, though mini PC remains a valid option if the team prefers on-premises.
-- **Keep Excel**: the team continues using Excel + Xenith normally. The sync script is a passive reader, not a replacement.
+- **Keep Excel on work PC untouched**: no scripts, no performance impact on the team's machine.
