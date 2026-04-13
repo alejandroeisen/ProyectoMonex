@@ -52,11 +52,12 @@ ProyectoIlanErgas/
 │   │   └── routers/
 │   │       ├── auth.py       ← POST /auth/login
 │   │       └── sheets.py     ← GET /sheets/, GET /sheets/{id}/data
-│   ├── init_db.py            ← run once: creates tables + seeds admin user
+│   ├── init_db.py            ← run once: creates tables + seeds superuser admin
 │   ├── requirements.txt
 │   └── .env.example          ← copy to .env and fill in credentials
 ├── sync/
 │   ├── excel_sync.py         ← Linux dev: openpyxl on static file. Pass --loop for continuous
+│   ├── sync.log              ← rotating log written by excel_sync.py (gitignored)
 │   └── excel_sync_windows.py ← Windows prod: win32com on live Excel (NOT YET BUILT)
 └── frontend/
     └── src/
@@ -64,7 +65,9 @@ ProyectoIlanErgas/
         ├── api.js             ← all fetch calls to backend
         ├── pages/
         │   ├── Login.jsx/css
-        │   └── Dashboard.jsx/css   ← sidebar sheet selector + main content area
+        │   ├── Dashboard.jsx/css   ← sidebar sheet selector + main content area
+        │   ├── AdminPanel.jsx/css  ← user management + sheet permissions (admin only)
+        │   └── LogsPanel.jsx/css   ← DB status, sync log tail, sheet counts (admin only)
         └── components/
             └── DataTable.jsx/css   ← table with search filter + column sort
 ```
@@ -101,21 +104,31 @@ npm run dev
 
 ### Core / unblocked
 - `excel_sync_windows.py` — win32com script for the mini PC (waiting on sheet layout confirmation)
-  - Must include: file-based logging with rotation (not just terminal output)
   - Must include: graceful handling of Excel open but Xenith not yet connected (wait, don't write stale data)
+  - File-based logging already designed in excel_sync.py — mirror the same pattern
 - Dashboard/summary view in the frontend (waiting on contents of their summary sheet)
-- Role-based access (column `role` already exists in users table, just not enforced yet)
-- Proper user management (add/remove users — currently only seeded via init_db.py)
+- **localStorage cache for last-seen sheet data** — so page loads while DB is down still show data
+  - ~500KB total for real data (12 sheets, 1500 rows, 10 cols) — fits well within 5MB localStorage limit
+  - Write only the active sheet on each successful refresh (~38KB every 5s) — negligible SSD impact
+
+### Done this session (feature/adminPanel branch)
+- ✅ Role-based access enforced (admin vs viewer, JWT carries user_id + role)
+- ✅ User management UI: Admin tab in sidebar — create/delete users, assign sheet permissions
+- ✅ Superuser concept: `is_superuser` flag, default admin is protected from deletion
+- ✅ Logs tab: DB status, last sync time, sheet row counts, sync log tail (auto-refreshes 10s)
+- ✅ Stale data banner when auto-refresh fails — table stays visible
+- ✅ Sidebar retries sheet list every 10s if initial load failed
+- ✅ Sync script writes to rotating log file (sync/sync.log)
+- ✅ Full test suite: 31 tests across auth, sheets, admin endpoints
 
 ### Monitoring / observability
-- **Admin monitoring page** (frontend, role-gated to `admin`): accessible via URL, shows:
-  - Last sync time and whether it's recent (stale = warning)
-  - Recent log entries from the sync script (last N lines)
-  - System status (DB reachable, Excel running, Xenith connected)
-  - This is the first line of troubleshooting — no RDP needed for common issues
-- **Extended `/health` endpoint** (backend): returns last sync timestamp, row counts, error state
-  - Admin page reads from this endpoint
 - **RDP remains essential** as fallback for when the URL itself is unreachable (network/power issues)
+- Logs tab covers the common cases (DB down, sync stopped, stale data)
+
+### Deployment (when ready)
+- Windows setup on mini PC: Task Scheduler auto-start for sync script + backend + PostgreSQL
+- Outside access: Dynamic DNS + port forwarding on office router, or WireGuard VPN
+- RDP enabled on mini PC during setup (one-time config, documented in handoff)
 
 ### Deployment
 - Windows setup on mini PC: Task Scheduler auto-start for sync script + backend + PostgreSQL
