@@ -13,6 +13,11 @@ sync/.env
 frontend/node_modules/
 frontend/dist/
 
+# Proposal — private, not for repo
+propuesta.md
+propuesta.docx
+diagrama_mermaid.md
+
 # OS
 .DS_Store
 Thumbs.db

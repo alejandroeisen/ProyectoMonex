@@ -62,15 +62,13 @@ def create_user(body: CreateUserRequest, current_user: dict = Depends(require_ad
 
 @router.delete("/users/{user_id}", status_code=204)
 def delete_user(user_id: int, current_user: dict = Depends(require_admin)):
+    if user_id == current_user["user_id"]:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-            user = cur.fetchone()
-            if not user:
+            cur.execute("DELETE FROM users WHERE id = %s RETURNING id", (user_id,))
+            if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Usuario no encontrado")
-            if user["username"] == current_user["sub"]:
-                raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
-            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
 
 
 class UpdateUserSheetsRequest(BaseModel):
