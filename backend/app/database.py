@@ -49,4 +49,10 @@ def init_db():
                     row_data JSONB NOT NULL,
                     synced_at TIMESTAMP DEFAULT NOW()
                 );
+                        
+                CREATE TABLE IF NOT EXISTS user_sheets (
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    sheet_id INTEGER REFERENCES sheets(id) ON DELETE CASCADE,
+                    PRIMARY KEY (user_id, sheet_id)
+                );
             """)
