@@ -56,3 +56,8 @@ def init_db():
                     PRIMARY KEY (user_id, sheet_id)
                 );
             """)
+            # Safe migration: adds column to existing DBs without breaking new ones
+            cur.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE;
+            """)

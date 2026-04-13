@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from psycopg2.extras import execute_values
 from app.database import get_db
 from app.auth import get_current_user, hash_password
+import os
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ def list_users(current_user: dict = Depends(require_admin)):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT u.id, u.username, u.role, u.created_at,
+                SELECT u.id, u.username, u.role, u.is_superuser, u.created_at,
                        COALESCE(
                            json_agg(us.sheet_id) FILTER (WHERE us.sheet_id IS NOT NULL),
                            '[]'
@@ -66,9 +67,13 @@ def delete_user(user_id: int, current_user: dict = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM users WHERE id = %s RETURNING id", (user_id,))
-            if not cur.fetchone():
+            cur.execute("SELECT is_superuser FROM users WHERE id = %s", (user_id,))
+            target = cur.fetchone()
+            if not target:
                 raise HTTPException(status_code=404, detail="Usuario no encontrado")
+            if target["is_superuser"]:
+                raise HTTPException(status_code=403, detail="No se puede eliminar al superusuario")
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
 
 
 class UpdateUserSheetsRequest(BaseModel):
@@ -90,3 +95,60 @@ def update_user_sheets(user_id: int, body: UpdateUserSheetsRequest, current_user
                     [(user_id, sheet_id) for sheet_id in body.sheet_ids]
                 )
     return {"user_id": user_id, "sheet_ids": body.sheet_ids}
+
+
+_SYNC_LOG_PATH = os.getenv(
+    "SYNC_LOG_PATH",
+    os.path.join(os.path.dirname(__file__), "../../../sync/sync.log")
+)
+_LOG_TAIL_LINES = 80
+
+
+@router.get("/status")
+def get_status(current_user: dict = Depends(require_admin)):
+    # DB query — non-fatal if DB is down
+    db_ok = True
+    sheets = []
+    db_error = None
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT s.name, s.display_name, s.last_synced_at,
+                           COUNT(sd.id) AS row_count
+                    FROM sheets s
+                    LEFT JOIN sheet_data sd ON sd.sheet_id = s.id
+                    WHERE s.is_active = true
+                    GROUP BY s.id
+                    ORDER BY s.name
+                """)
+                sheets = [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        db_ok = False
+        db_error = str(e)
+
+    # Log file — always readable regardless of DB state
+    log_lines = []
+    log_missing = False
+    log_path = os.path.normpath(_SYNC_LOG_PATH)
+    if os.path.exists(log_path):
+        with open(log_path, "r", encoding="utf-8") as f:
+            log_lines = f.readlines()[-_LOG_TAIL_LINES:]
+        log_lines = [l.rstrip("\n") for l in log_lines]
+    else:
+        log_missing = True
+
+    last_sync_at = None
+    for s in sheets:
+        t = s.get("last_synced_at")
+        if t and (last_sync_at is None or t > last_sync_at):
+            last_sync_at = t
+
+    return {
+        "db_ok": db_ok,
+        "db_error": db_error,
+        "last_sync_at": last_sync_at,
+        "sheets": sheets,
+        "log_lines": log_lines,
+        "log_missing": log_missing,
+    }

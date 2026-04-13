@@ -17,11 +17,15 @@ if __name__ == "__main__":
             cur.execute("SELECT id FROM users WHERE username = 'admin'")
             if not cur.fetchone():
                 cur.execute(
-                    "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                    ("admin", hash_password("admin123"), "admin"),
+                    "INSERT INTO users (username, password_hash, role, is_superuser) VALUES (%s, %s, %s, %s)",
+                    ("admin", hash_password("admin123"), "admin", True),
                 )
-                print("Default user created  →  username: admin  /  password: admin123")
+                print("Default superuser created  →  username: admin  /  password: admin123")
             else:
+                # Mark existing admin as superuser if not already
+                cur.execute(
+                    "UPDATE users SET is_superuser = TRUE WHERE username = 'admin' AND is_superuser = FALSE"
+                )
                 print("Admin user already exists, skipping.")
 
     print("Done.")

@@ -1,0 +1,154 @@
+.logs-panel {
+    padding: 1.5rem;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.logs-error {
+    color: #dc2626;
+    font-size: 0.9rem;
+}
+
+/* Status bar */
+
+.logs-status-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.status-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 160px;
+}
+
+.status-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9ca3af;
+}
+
+.status-pill {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.pill-ok {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.pill-warn {
+    background: #fefce8;
+    color: #a16207;
+}
+
+.pill-unknown {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.pill-error {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.stale-warning {
+    font-size: 0.78rem;
+    color: #a16207;
+}
+
+.logs-refreshed {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+/* Sheet counts table */
+
+.sheet-counts {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+}
+
+.logs-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9ca3af;
+    margin: 0 0 0.75rem;
+}
+
+.counts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.counts-table th {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    color: #6b7280;
+    font-weight: 500;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.counts-table td {
+    padding: 0.45rem 0.5rem;
+    color: #111827;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.counts-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Log output */
+
+.log-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    flex: 1;
+}
+
+.log-output {
+    background: #0f172a;
+    color: #94a3b8;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-y: auto;
+    max-height: 420px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+}
+
+.logs-empty {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    margin: 0;
+}
