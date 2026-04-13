@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, sheets
+from app.routers import auth, sheets, admin
 from app.database import init_db
 
 app = FastAPI(title="Intelimed Dashboard")
@@ -21,6 +21,7 @@ def startup():
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(sheets.router, prefix="/sheets", tags=["sheets"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 @app.get("/health")
