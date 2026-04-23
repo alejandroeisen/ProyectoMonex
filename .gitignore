@@ -16,3 +16,10 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Excel temp/lock files
+~$*.xlsx
+~$*.xls
+
+# Logs
+*.log
