@@ -1,0 +1,129 @@
+2026-04-23 17:18:45,482 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:18:45,482 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:18:45,482 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:18:45,483 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:18:45,483 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:18:45,483 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:18:47,644 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:19:50,731 INFO     --- Sync cycle starting ---
+2026-04-23 17:19:50,949 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:19:50,949 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:19:50,951 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:19:50,951 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:19:50,952 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:19:50,952 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:19:53,091 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:24:12,054 INFO     Starting push loop — interval: 10s — mode: win32com (live Excel)
+2026-04-23 17:24:12,054 INFO     --- Sync cycle starting ---
+2026-04-23 17:24:12,084 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:24:12,084 WARNING  No data read — skipping push.
+2026-04-23 17:24:12,084 INFO     Sleeping 10s...
+
+2026-04-23 17:24:22,085 INFO     --- Sync cycle starting ---
+2026-04-23 17:24:22,085 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:24:22,086 WARNING  No data read — skipping push.
+2026-04-23 17:24:22,086 INFO     Sleeping 10s...
+
+2026-04-23 17:24:32,086 INFO     --- Sync cycle starting ---
+2026-04-23 17:24:32,087 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:24:32,087 WARNING  No data read — skipping push.
+2026-04-23 17:24:32,087 INFO     Sleeping 10s...
+
+2026-04-23 17:24:42,091 INFO     --- Sync cycle starting ---
+2026-04-23 17:24:42,094 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:24:42,094 WARNING  No data read — skipping push.
+2026-04-23 17:24:42,095 INFO     Sleeping 10s...
+
+2026-04-23 17:24:52,096 INFO     --- Sync cycle starting ---
+2026-04-23 17:24:52,097 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:24:52,097 WARNING  No data read — skipping push.
+2026-04-23 17:24:52,097 INFO     Sleeping 10s...
+
+2026-04-23 17:25:02,098 INFO     --- Sync cycle starting ---
+2026-04-23 17:25:02,098 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:25:02,099 WARNING  No data read — skipping push.
+2026-04-23 17:25:02,099 INFO     Sleeping 10s...
+
+2026-04-23 17:25:12,099 INFO     --- Sync cycle starting ---
+2026-04-23 17:25:12,101 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:25:12,101 WARNING  No data read — skipping push.
+2026-04-23 17:25:12,102 INFO     Sleeping 10s...
+
+2026-04-23 17:25:43,358 INFO     Starting push loop — interval: 10s — mode: win32com (live Excel)
+2026-04-23 17:25:43,358 INFO     --- Sync cycle starting ---
+2026-04-23 17:25:43,377 WARNING  Excel is not running — skipping this cycle.
+2026-04-23 17:25:43,378 WARNING  No data read — skipping push.
+2026-04-23 17:25:43,378 INFO     Sleeping 10s...
+
+2026-04-23 17:31:50,693 INFO     Starting push loop — interval: 10s — mode: xlwings (live Excel)
+2026-04-23 17:31:50,693 INFO     --- Sync cycle starting ---
+2026-04-23 17:31:51,426 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:31:51,430 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:31:51,434 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:31:51,437 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:31:51,441 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:31:51,444 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:31:53,591 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:31:53,593 INFO     Sleeping 10s...
+
+2026-04-23 17:32:03,595 INFO     --- Sync cycle starting ---
+2026-04-23 17:32:03,609 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:32:03,612 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:32:03,616 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:32:03,620 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:32:03,625 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:32:03,629 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:32:05,780 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:32:05,783 INFO     Sleeping 10s...
+
+2026-04-23 17:32:15,785 INFO     --- Sync cycle starting ---
+2026-04-23 17:32:15,799 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:32:15,803 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:32:15,806 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:32:15,811 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:32:15,815 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:32:15,819 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:32:17,934 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:32:17,936 INFO     Sleeping 10s...
+
+2026-04-23 17:32:27,939 INFO     --- Sync cycle starting ---
+2026-04-23 17:33:54,978 ERROR    Error reading workbook 'datos_fake.xlsx': (-2146777998, 'OLE error 0x800ac472', None, None)
+2026-04-23 17:33:54,979 WARNING  No data read — skipping push.
+2026-04-23 17:33:54,979 INFO     Sleeping 10s...
+
+2026-04-23 17:34:04,980 INFO     --- Sync cycle starting ---
+2026-04-23 17:34:04,993 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:34:04,996 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:34:04,999 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:34:05,002 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:34:05,008 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:34:05,011 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:34:07,113 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:34:07,114 INFO     Sleeping 10s...
+
+2026-04-23 17:34:17,117 INFO     --- Sync cycle starting ---
+2026-04-23 17:34:17,134 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:34:17,138 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:34:17,142 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:34:17,145 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:34:17,148 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:34:17,152 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:34:19,266 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:34:19,268 INFO     Sleeping 10s...
+
+2026-04-23 17:34:29,271 INFO     --- Sync cycle starting ---
+2026-04-23 17:34:29,285 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:34:29,288 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:34:29,292 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:34:29,295 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:34:29,298 DEBUG      Read 'Datos_4': 16 rows, 8 cols
+2026-04-23 17:34:29,302 DEBUG      Read 'Datos_5': 16 rows, 8 cols
+2026-04-23 17:34:31,411 INFO     Push OK — 6 sheets, 96 rows
+2026-04-23 17:34:31,412 INFO     Sleeping 10s...
+
+2026-04-23 17:34:41,414 INFO     --- Sync cycle starting ---
+2026-04-23 17:34:41,429 DEBUG      Read 'Sheet1': 16 rows, 8 cols
+2026-04-23 17:34:41,433 DEBUG      Read 'Datos_1': 16 rows, 8 cols
+2026-04-23 17:34:41,437 DEBUG      Read 'Datos_2': 16 rows, 8 cols
+2026-04-23 17:34:41,440 DEBUG      Read 'Datos_3': 16 rows, 8 cols
+2026-04-23 17:34:41,443 DEBUG      Read 'Datos_4': 16 rows, 8 cols
