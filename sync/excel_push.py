@@ -278,7 +278,10 @@ def run_cycle(file_path: str | None):
     """Read Excel and push. Queues on failure."""
     logger.info("--- Sync cycle starting ---")
 
+    t0 = time.perf_counter()
     sheets = read_with_timeout(file_path)
+    read_ms = (time.perf_counter() - t0) * 1000
+    logger.info(f"Excel read: {read_ms:.0f}ms")
 
     if sheets is None:
         logger.warning("No data read — skipping push.")
@@ -290,7 +293,11 @@ def run_cycle(file_path: str | None):
 
     flush_retry_queue()
 
+    t1 = time.perf_counter()
     success = push_to_api(sheets)
+    push_ms = (time.perf_counter() - t1) * 1000
+    logger.info(f"HTTP push: {push_ms:.0f}ms | total cycle: {(read_ms + push_ms):.0f}ms")
+
     if not success:
         retry_queue.append(sheets)
         logger.warning(f"Queued for retry. Queue size: {len(retry_queue)}")
