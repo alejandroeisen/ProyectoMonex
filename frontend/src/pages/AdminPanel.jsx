@@ -75,7 +75,7 @@ export default function AdminPanel({ token }) {
             <div className="admin-columns">
                 {/* Left: user list */}
                 <div className="admin-col">
-                    <h2 className="admin-section-title">Users</h2>
+                    <h2 className="admin-section-title">Usuarios</h2>
 
                     <ul className="user-list">
                         {users.map(u => (
@@ -87,13 +87,13 @@ export default function AdminPanel({ token }) {
                                 <div className="user-info">
                                     <span className="user-name">{u.username}</span>
                                     <span className={`user-role role-${u.role}`}>{u.role}</span>
-                                    {u.is_superuser && <span className="superuser-badge" title="Superuser — cannot be deleted">⚿</span>}
+                                    {u.is_superuser && <span className="superuser-badge" title="Superusuario — no puede ser eliminado">⚿</span>}
                                 </div>
                                 {!u.is_superuser && (
                                     <button
                                         className="delete-btn"
                                         onClick={e => { e.stopPropagation(); handleDelete(u.id); }}
-                                        title="Delete user"
+                                        title="Eliminar usuario"
                                     >
                                         ×
                                     </button>
@@ -103,11 +103,11 @@ export default function AdminPanel({ token }) {
                     </ul>
 
                     <form className="create-form" onSubmit={handleCreate}>
-                        <h3 className="admin-section-title">New user</h3>
+                        <h3 className="admin-section-title">Nuevo usuario</h3>
                         <input
                             className="admin-input"
                             type="text"
-                            placeholder="Username"
+                            placeholder="Usuario"
                             value={newUsername}
                             onChange={e => setNewUsername(e.target.value)}
                             required
@@ -115,7 +115,7 @@ export default function AdminPanel({ token }) {
                         <input
                             className="admin-input"
                             type="password"
-                            placeholder="Password"
+                            placeholder="Contraseña"
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             required
@@ -129,7 +129,7 @@ export default function AdminPanel({ token }) {
                             <option value="admin">admin</option>
                         </select>
                         <button className="admin-btn" type="submit" disabled={creating}>
-                            {creating ? 'Creating...' : 'Create user'}
+                            {creating ? 'Creando...' : 'Crear usuario'}
                         </button>
                     </form>
                 </div>
@@ -138,8 +138,8 @@ export default function AdminPanel({ token }) {
                 <div className="admin-col">
                     <h2 className="admin-section-title">
                         {selectedUser
-                            ? `Sheets — ${selectedUser.username}`
-                            : 'Select a user to edit permissions'}
+                            ? `Hojas — ${selectedUser.username}`
+                            : 'Selecciona un usuario para gestionar sus permisos'}
                     </h2>
 
                     {selectedUser && (
@@ -157,13 +157,13 @@ export default function AdminPanel({ token }) {
                                 </li>
                             ))}
                             {sheets.length === 0 && (
-                                <p className="admin-empty">No sheets synced yet.</p>
+                                <p className="admin-empty">Hojas de cálculo no sincronizadas.</p>
                             )}
                         </ul>
                     )}
 
                     {!selectedUser && (
-                        <p className="admin-empty">Click a user on the left to manage their table access.</p>
+                        <p className="admin-empty">Selecciona un usuario para gestionar sus permisos.</p>
                     )}
                 </div>
             </div>

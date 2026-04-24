@@ -25,11 +25,11 @@ export default function Login({ onLogin }) {
     return (
         <div className="login-wrapper">
             <div className="login-card">
-                <h1>Intelimed</h1>
-                <p className="login-subtitle">Internal Dashboard</p>
+                <h1>Monex</h1>
+                <p className="login-subtitle">Dashboard Interno</p>
                 <form onSubmit={handleSubmit}>
                     <div className="field">
-                        <label>Username</label>
+                        <label>Usuario</label>
                         <input
                             type="text"
                             value={username}
@@ -39,7 +39,7 @@ export default function Login({ onLogin }) {
                         />
                     </div>
                     <div className="field">
-                        <label>Password</label>
+                        <label>Contraseña</label>
                         <input
                             type="password"
                             value={password}
@@ -49,7 +49,7 @@ export default function Login({ onLogin }) {
                     </div>
                     {error && <p className="login-error">{error}</p>}
                     <button type="submit" disabled={loading}>
-                        {loading ? 'Signing in...' : 'Sign in'}
+                        {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
                     </button>
                 </form>
             </div>

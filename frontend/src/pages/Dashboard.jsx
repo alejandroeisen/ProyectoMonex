@@ -75,18 +75,18 @@ export default function Dashboard({ user, token, onLogout }) {
     return (
         <div className="dashboard">
             <header className="dashboard-header">
-                <span className="dashboard-brand">Intelimed</span>
+                <span className="dashboard-brand">Monex</span>
                 <div className="dashboard-user">
                     <span>{user.username}</span>
-                    <button className="logout-btn" onClick={onLogout}>Sign out</button>
+                    <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
                 </div>
             </header>
 
             <div className="dashboard-body">
                 <nav className="sidebar">
-                    <p className="sidebar-label">Tables</p>
+                    <p className="sidebar-label">Tablas</p>
                     {sheets.length === 0 && (
-                        <p className="sidebar-empty">No data synced yet</p>
+                        <p className="sidebar-empty">Tablas no sincronizadas.</p>
                     )}
                     {sheets.map(sheet => (
                         <button
@@ -129,7 +129,7 @@ export default function Dashboard({ user, token, onLogout }) {
                                 </div>
                             )}
                             {error && !sheetData && <p className="dash-error">{error}</p>}
-                            {loading && <p className="dash-loading">Loading...</p>}
+                            {loading && <p className="dash-loading">Cargando...</p>}
                             {sheetData && !loading && (
                                 <DataTable
                                     sheet={sheetData.sheet}
@@ -138,7 +138,7 @@ export default function Dashboard({ user, token, onLogout }) {
                             )}
                             {!activeSheet && !loading && sheets.length === 0 && (
                                 <p className="dash-empty">
-                                    Run the sync script to load data from Excel.
+                                    Ejecuta el script de sincronización para cargar datos desde Excel.
                                 </p>
                             )}
                         </>

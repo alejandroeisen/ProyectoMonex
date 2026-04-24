@@ -45,7 +45,7 @@ export default function DataTable({ sheet, rows }) {
 
     const lastSynced = sheet.last_synced_at
         ? new Date(sheet.last_synced_at).toLocaleString()
-        : 'Never';
+        : 'Nunca';
 
     return (
         <div className="table-container">
@@ -59,7 +59,7 @@ export default function DataTable({ sheet, rows }) {
                 <input
                     className="table-search"
                     type="text"
-                    placeholder="Search all columns..."
+                    placeholder="Buscar..."
                     value={filter}
                     onChange={e => setFilter(e.target.value)}
                 />
