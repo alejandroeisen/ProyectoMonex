@@ -15,6 +15,11 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
+# Proposal — private, not for repo
+propuesta.md
+propuesta.docx
+diagrama_mermaid.md
+
 # OS
 .DS_Store
 Thumbs.db

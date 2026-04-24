@@ -31,5 +31,5 @@ def login(credentials: LoginRequest):
             detail="Incorrect username or password",
         )
 
-    token = create_access_token({"sub": user["username"], "role": user["role"]})
+    token = create_access_token({"sub": user["username"], "role": user["role"], "user_id": user["id"]})
     return TokenResponse(access_token=token, username=user["username"], role=user["role"])
