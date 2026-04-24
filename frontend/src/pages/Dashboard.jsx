@@ -68,7 +68,7 @@ export default function Dashboard({ user, token, onLogout }) {
                     }
                 })
                 .catch(() => {});
-        }, 10000);
+        }, 5000);
         return () => clearInterval(interval);
     }, [sheets.length]);
 

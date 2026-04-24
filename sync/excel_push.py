@@ -18,7 +18,7 @@ Config (via .env in this directory):
     MINIPC_API_URL      = http://<minipc-tailscale-ip>:8000
     SYNC_API_KEY        = your-secret-key
     EXCEL_WORKBOOK_NAME = MyWorkbook.xlsx   (optional, matches partial name)
-    PUSH_INTERVAL_SECONDS = 60
+    PUSH_INTERVAL_SECONDS = 5
 """
 
 import os
@@ -43,7 +43,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 MINIPC_API_URL       = os.getenv("MINIPC_API_URL", "http://localhost:8000")
 SYNC_API_KEY         = os.getenv("SYNC_API_KEY", "")
 EXCEL_WORKBOOK_NAME  = os.getenv("EXCEL_WORKBOOK_NAME", "")   # partial match, optional
-PUSH_INTERVAL        = int(os.getenv("PUSH_INTERVAL_SECONDS", "60"))
+PUSH_INTERVAL        = int(os.getenv("PUSH_INTERVAL_SECONDS", "5"))
 MAX_RETRY_QUEUE      = 5   # max failed payloads to hold in memory
 
 # ── Logging ───────────────────────────────────────────────────────────────────
