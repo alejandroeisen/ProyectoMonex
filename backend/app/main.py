@@ -5,9 +5,16 @@ from app.database import init_db
 
 app = FastAPI(title="Intelimed Dashboard")
 
+import os
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    *[o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()],
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
