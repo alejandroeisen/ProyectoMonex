@@ -44,6 +44,7 @@ MINIPC_API_URL       = os.getenv("MINIPC_API_URL", "http://localhost:8000")
 SYNC_API_KEY         = os.getenv("SYNC_API_KEY", "")
 EXCEL_WORKBOOK_NAME  = os.getenv("EXCEL_WORKBOOK_NAME", "")   # partial match, optional
 PUSH_INTERVAL        = int(os.getenv("PUSH_INTERVAL_SECONDS", "5"))
+EXCLUDED_SHEETS      = {s.strip() for s in os.getenv("EXCLUDED_SHEETS", "").split(",") if s.strip()}
 MAX_RETRY_QUEUE      = 5   # max failed payloads to hold in memory
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -124,6 +125,10 @@ def read_via_xlwings() -> list[dict] | None:
         for sheet in wb.sheets:
             sheet_name = sheet.name
 
+            if sheet_name in EXCLUDED_SHEETS:
+                logger.debug(f"Skipping '{sheet_name}': excluded.")
+                continue
+
             raw = sheet.used_range.value  # list of lists, live in-memory values
 
             # Normalize: xlwings returns a single value, a flat list (one row),
@@ -179,6 +184,10 @@ def read_via_openpyxl(file_path: str) -> list[dict] | None:
 
     sheets = []
     for sheet_name in wb.sheetnames:
+        if sheet_name in EXCLUDED_SHEETS:
+            logger.debug(f"Skipping '{sheet_name}': excluded.")
+            continue
+
         ws = wb[sheet_name]
         all_rows = list(ws.iter_rows(values_only=True))
 

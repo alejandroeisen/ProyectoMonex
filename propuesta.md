@@ -49,7 +49,6 @@ Una interfaz accesible desde cualquier dispositivo con conexión a internet. El 
   - Selector de tablas
   - Vista de datos con búsqueda y ordenamiento por columna
   - Actualización automática de datos sin recargar la página
-- Vista resumen / dashboard con métricas clave consolidadas
 - Panel de administración (accesible vía rol admin):
   - Gestión de usuarios: crear, eliminar, asignar permisos por tabla
   - Estado del sistema en tiempo real (última sincronización, conexión a base de datos)
