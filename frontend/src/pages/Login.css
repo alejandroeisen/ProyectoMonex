@@ -81,3 +81,34 @@ button[type="submit"]:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+.login-google {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+}
+
+.login-admin-toggle {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.login-admin-link {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.login-admin-link:hover {
+    color: #555;
+}
+
+.login-admin-form {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e5e7eb;
+}

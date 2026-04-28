@@ -56,8 +56,16 @@ def init_db():
                     PRIMARY KEY (user_id, sheet_id)
                 );
             """)
-            # Safe migration: adds column to existing DBs without breaking new ones
+            # Safe migrations: add columns to existing DBs without breaking new ones
             cur.execute("""
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE;
+            """)
+            cur.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;
+            """)
+            cur.execute("""
+                ALTER TABLE users
+                ALTER COLUMN password_hash DROP NOT NULL;
             """)

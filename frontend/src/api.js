@@ -21,6 +21,14 @@ export async function login(username, password) {
     });
 }
 
+export async function loginWithGoogle(token) {
+    return request('/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+    });
+}
+
 export async function getSheets(token) {
     return request('/sheets/', { headers: authHeaders(token) });
 }

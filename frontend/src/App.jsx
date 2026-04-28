@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
@@ -25,15 +26,17 @@ export default function App() {
         setAuth(null);
     }
 
-    if (!auth) {
-        return <Login onLogin={handleLogin} />;
-    }
-
     return (
-        <Dashboard
-            user={{ username: auth.username, role: auth.role }}
-            token={auth.access_token}
-            onLogout={handleLogout}
-        />
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+            {!auth ? (
+                <Login onLogin={handleLogin} />
+            ) : (
+                <Dashboard
+                    user={{ username: auth.username, role: auth.role }}
+                    token={auth.access_token}
+                    onLogout={handleLogout}
+                />
+            )}
+        </GoogleOAuthProvider>
     );
 }
