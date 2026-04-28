@@ -86,6 +86,8 @@ La cuenta `admin` (acceso de emergencia con contraseña) no usa Google. Para cam
 
 **Requisitos:** Python 3.10+, dependencias del backend instaladas, y el archivo `backend/.env` configurado con `DATABASE_URL` apuntando a la base de datos correcta.
 
+**Importante:** el script debe conectarse a la base de datos de producción (Render). Para eso, reemplazar temporalmente el valor de `DATABASE_URL` en `backend/.env` con la **External Database URL** que aparece en Render → PostgreSQL → Info. Una vez ejecutado el script, restaurar el valor original.
+
 **Pasos:**
 
 1. Desde la carpeta `backend/`, activar el entorno virtual e instalar dependencias si no están instaladas:
