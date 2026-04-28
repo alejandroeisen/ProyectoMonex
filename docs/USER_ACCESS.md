@@ -82,23 +82,43 @@ SELECT id, username, email, role, is_superuser, created_at FROM users;
 
 ## Cambiar la contraseña de la cuenta de administrador
 
-La cuenta `admin` (acceso de emergencia con contraseña) no usa Google. Para cambiar su contraseña:
+La cuenta `admin` (acceso de emergencia con contraseña) no usa Google. Para cambiar su contraseña usar el script incluido en el proyecto.
 
-1. Abrir una consola PSQL en Render (ver pasos anteriores)
-2. Generar el hash de la nueva contraseña ejecutando esto en el servidor o localmente con Python:
+**Requisitos:** Python 3.10+, dependencias del backend instaladas, y el archivo `backend/.env` configurado con `DATABASE_URL` apuntando a la base de datos correcta.
 
-```python
-import bcrypt
-print(bcrypt.hashpw(b"nueva_contrasena_aqui", bcrypt.gensalt()).decode())
+**Pasos:**
+
+1. Desde la carpeta `backend/`, activar el entorno virtual e instalar dependencias si no están instaladas:
+
+```bash
+# Linux / Mac
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+
+# Windows
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt
 ```
 
-3. Copiar el hash generado (empieza con `$2b$...`) y ejecutar en PSQL:
+2. Ejecutar el script:
 
-```sql
-UPDATE users SET password_hash = '$2b$12$...' WHERE username = 'admin';
+```bash
+# Linux / Mac
+venv/bin/python change_password.py
+
+# Windows
+venv\Scripts\python change_password.py
 ```
 
-4. Verificar que el login con la nueva contraseña funciona antes de cerrar la sesión actual
+3. El script pedirá la nueva contraseña dos veces (mínimo 8 caracteres). No se muestra mientras se escribe.
+
+4. Verificar que el login con la nueva contraseña funciona antes de cerrar la sesión actual.
+
+Para cambiar la contraseña de otro usuario (no `admin`):
+
+```bash
+venv/bin/python change_password.py --username nombre_usuario
+```
 
 ---
 
