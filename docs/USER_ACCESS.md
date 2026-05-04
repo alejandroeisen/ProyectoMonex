@@ -136,7 +136,18 @@ El PC de trabajo ejecuta un script en segundo plano que lee el Excel en vivo y e
    pip install requests python-dotenv openpyxl xlwings
    ```
 
-4. Hacer clic derecho sobre `registrar_tarea.bat` → **Ejecutar como administrador**. Confirmar el mensaje de éxito.
+4. Ejecutar el paso de post-instalación requerido por xlwings en Windows (solo una vez):
+   ```
+   python -c "import xlwings; print(xlwings.__file__)"
+   ```
+   Copiar la ruta que imprime, subir dos carpetas para encontrar `pywin32_postinstall.py`, y ejecutar:
+   ```
+   python C:\ruta\hasta\pywin32_postinstall.py -install
+   ```
+
+5. Abrir Excel con el archivo de datos antes de continuar.
+
+6. Hacer clic derecho sobre `registrar_tarea.bat` → **Ejecutar como administrador**. Confirmar el mensaje de éxito.
 
 A partir de ese momento, el script se inicia automáticamente al encender el PC y se reinicia solo si falla. Para verificar que está corriendo, abrir **Programador de tareas** y buscar `Monex Excel Push`. Los registros de actividad se guardan en `sync\excel_push.log`.
 
@@ -145,32 +156,20 @@ Para iniciar el script manualmente sin reiniciar el PC, ejecutar en una terminal
 schtasks /run /tn "Monex Excel Push"
 ```
 
+> **Importante:** Excel debe estar abierto con el archivo de datos cada vez que el script corre. Si Excel está cerrado, el script registra una advertencia y omite ese ciclo — no se pierden datos, simplemente se pausa hasta que Excel esté disponible.
+
 ---
 
-## Migración de dominio
+## Cambio a dominio personalizado (futuro)
 
-Al migrar el sistema al dominio del cliente (`monex.cl`):
+Si en algún momento se configura un dominio propio (ej: `dashboard.monex.cl`) en lugar de la URL de Render:
 
-**1. Actualizar variables de entorno en Render**
+**1. Actualizar Google Cloud Console**
 
-Render → backend service → Environment:
+Ir a [console.cloud.google.com](https://console.cloud.google.com) → el proyecto del dashboard → APIs & Services → Credentials → el cliente OAuth → agregar el nuevo dominio a **Authorized JavaScript origins**.
 
-| Variable | Valor de prueba | Valor producción |
-|---|---|---|
-| `ALLOWED_DOMAIN` | `intelimed.ai` | `monex.cl` |
-| `GOOGLE_CLIENT_ID` | (el actual) | (el actual, salvo que se cree un proyecto GCP nuevo) |
+**2. Actualizar variables de entorno en Render**
+
+Render → backend service → Environment → agregar el nuevo dominio a `ALLOWED_ORIGINS`.
 
 Guardar → el servicio se redespliega automáticamente.
-
-**2. Actualizar Google Cloud Console**
-
-Ir a [console.cloud.google.com](https://console.cloud.google.com) → el proyecto del dashboard → APIs & Services → Credentials → el cliente OAuth → agregar a **Authorized JavaScript origins**:
-- La URL final del frontend (ej: `https://monexfront.onrender.com`)
-
-Si se usa un dominio personalizado en el futuro, agregarlo también aquí.
-
-**3. Limpiar cuentas de prueba**
-
-Las cuentas creadas durante el desarrollo con dominio distinto al de producción pueden eliminarse desde el panel de administración (pestaña Admin → × junto al usuario).
-
-Después del cambio de dominio, esas cuentas no podrán iniciar sesión, pero seguirán existiendo en la base de datos hasta que se eliminen manualmente.

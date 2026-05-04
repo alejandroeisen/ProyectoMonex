@@ -19,23 +19,19 @@ Second output → `SYNC_API_KEY` (also goes in the Work PC `.env`)
 
 ## 1. Google Cloud — create OAuth client
 
-This must be done under the client's Google account (or a Google Cloud project they own), so the OAuth consent screen is tied to their organization.
+This must be done under the client's Google account so the OAuth consent screen is tied to their organization.
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project
-2. Enable the **Google+ API** (or **Google Identity**)
-3. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+2. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
    - Application type: **Web application**
-   - Authorized JavaScript origins: add the frontend Render URL once you have it (step 3) — you can come back and add it after
-4. Copy the generated **Client ID** — you'll need it in steps 2 and 3
+   - Authorized JavaScript origins: leave blank for now — you'll add the frontend URL in step 5
+3. Copy the generated **Client ID** — you'll need it in steps 3 and 4
 
 ---
 
 ## 2. Render PostgreSQL
 
-Create → **New PostgreSQL** on Render. Once provisioned:
-
-- Copy the **Internal Database URL** — used for `DATABASE_URL` in the backend service (step 3)
-- Copy the **External Database URL** — keep it aside for running `change_password.py` locally later
+Create → **New PostgreSQL** on Render. Once provisioned, copy the **Internal Database URL** — you'll need it in step 3.
 
 ---
 
@@ -58,19 +54,21 @@ Environment variables to set:
 | `SYNC_API_KEY` | Generated in step 0 |
 | `GOOGLE_CLIENT_ID` | Client ID from step 1 |
 | `ALLOWED_DOMAIN` | `monex.cl` |
-| `ALLOWED_ORIGINS` | Frontend Render URL (fill in after step 4, e.g. `https://proyectomonex.onrender.com`) |
+| `ALLOWED_ORIGINS` | Leave blank for now — fill in after step 4 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` |
 | `ADMIN_INITIAL_PASSWORD` | A strong password of your choice |
 
 Deploy. Once live, confirm it's up: `GET https://[backend-url]/health` should return `{"status":"ok"}`.
 
-Tables and the `admin` user are created automatically on first startup, using `ADMIN_INITIAL_PASSWORD` as the password. After that the env var has no effect and can be removed from Render.
+Tables and the `admin` user are created automatically on first startup, using `ADMIN_INITIAL_PASSWORD` as the password. After that the env var has no effect and can be removed.
+
+> **Render free tier note:** free tier web services sleep after 15 minutes of inactivity. The push script will log connection failures while the backend is asleep and recover once it wakes up (~30s). For a production deployment use at least the Starter paid plan to avoid this.
 
 ---
 
 ## 4. Render Frontend (Static Site)
 
-Before deploying, update `frontend/.env.production` in the repo with the real values:
+Set the real values in `frontend/.env.production`, commit, and push before deploying:
 
 ```
 VITE_API_URL=https://[backend-url].onrender.com
@@ -85,14 +83,7 @@ Then create → **New Static Site** → connect the repo.
 | Build command | `npm install && npm run build` |
 | Publish directory | `dist` |
 
-Build environment variables (these override `.env.production` on Render):
-
-| Variable | Value |
-|---|---|
-| `VITE_API_URL` | Backend Render URL from step 3 |
-| `VITE_GOOGLE_CLIENT_ID` | Client ID from step 1 |
-
-Deploy. Note the frontend URL — go back to step 3 and fill in `ALLOWED_ORIGINS`, which will trigger a backend redeploy.
+Deploy. Once you have the frontend URL, go back to step 3 → `ALLOWED_ORIGINS` → set it to the frontend URL → save (triggers a backend redeploy).
 
 ---
 
@@ -111,7 +102,7 @@ Without this, Google rejects the OAuth login with an `origin_mismatch` error.
 ## 6. Post-deploy checks
 
 1. Open the frontend URL — the login screen should appear
-2. Log in with `admin` / the value you set for `ADMIN_INITIAL_PASSWORD` using the password login (click "Acceso de administrador")
+2. Log in with `admin` / the value you set for `ADMIN_INITIAL_PASSWORD` (click "Acceso de administrador")
 3. Confirm the Admin and Logs tabs load without errors
 
 To change the admin password at any point, use the Render Shell on the backend service:
@@ -124,18 +115,41 @@ python change_password.py
 ## 7. Work PC setup
 
 1. Copy the `sync/` folder to the Work PC (any path, e.g. `C:\Monex\sync\`)
+
 2. Copy `sync/.env.example` → `sync/.env` and fill in:
    - `MINIPC_API_URL` = backend Render URL from step 3
    - `SYNC_API_KEY` = the key generated in step 0
    - `EXCEL_WORKBOOK_NAME` = partial name of the client's workbook
-3. Open a terminal in `sync/` and run:
+
+3. Open a terminal in `sync/` and install dependencies:
    ```
    pip install requests python-dotenv openpyxl xlwings
    ```
-4. Right-click `registrar_tarea.bat` → **Run as administrator**
-5. Confirm the task appears in Windows Task Scheduler as `Monex Excel Push`
-6. Open Excel with the workbook, then run: `schtasks /run /tn "Monex Excel Push"`
-7. Check `sync\excel_push.log` — should show successful pushes within 15 seconds
+
+4. Run the xlwings post-install step (required once on Windows):
+   ```
+   python -c "import xlwings; print(xlwings.__file__)"
+   ```
+   Copy the path printed, go up two folders to find `pywin32_postinstall.py`, then run:
+   ```
+   python C:\path\to\pywin32_postinstall.py -install
+   ```
+   If it says "Shortcut creation skipped" that's fine — the important part is no errors.
+
+5. Open Excel with the client's workbook before continuing.
+
+6. Right-click `registrar_tarea.bat` → **Run as administrator**
+
+7. Confirm the task appears in Windows Task Scheduler as `Monex Excel Push`
+
+8. Start it immediately without rebooting:
+   ```
+   schtasks /run /tn "Monex Excel Push"
+   ```
+
+9. Check `sync\excel_push.log` — should show successful pushes within 15 seconds
+
+> **Note:** Excel must be open with the workbook loaded whenever the push script runs. If Excel is closed the script will log a warning and skip that cycle, then retry on the next interval — no data is lost, it just pauses until Excel is available again.
 
 ---
 
