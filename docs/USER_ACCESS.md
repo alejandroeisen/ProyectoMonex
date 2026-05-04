@@ -105,7 +105,7 @@ python change_password.py --username nombre_usuario
 
 Existe una cuenta `admin` con contraseña que no usa Google. Se accede desde la pantalla de login haciendo clic en **"Acceso de administrador"**. Esta cuenta es para uso técnico únicamente — no debe usarse en el día a día.
 
-Cambiar la contraseña inicial (`admin123`) tras la entrega del sistema siguiendo los pasos de la sección anterior.
+Para cambiar la contraseña seguir los pasos de la sección anterior.
 
 ---
 

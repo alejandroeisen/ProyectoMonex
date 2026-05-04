@@ -60,10 +60,11 @@ Environment variables to set:
 | `ALLOWED_DOMAIN` | `monex.cl` |
 | `ALLOWED_ORIGINS` | Frontend Render URL (fill in after step 4, e.g. `https://proyectomonex.onrender.com`) |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` |
+| `ADMIN_INITIAL_PASSWORD` | A strong password of your choice |
 
 Deploy. Once live, confirm it's up: `GET https://[backend-url]/health` should return `{"status":"ok"}`.
 
-Tables and the default `admin` user are created automatically on first startup.
+Tables and the `admin` user are created automatically on first startup, using `ADMIN_INITIAL_PASSWORD` as the password. After that the env var has no effect and can be removed from Render.
 
 ---
 
@@ -110,12 +111,13 @@ Without this, Google rejects the OAuth login with an `origin_mismatch` error.
 ## 6. Post-deploy checks
 
 1. Open the frontend URL — the login screen should appear
-2. Log in with `admin` / `admin123` using the password login (click "Acceso de administrador")
+2. Log in with `admin` / the value you set for `ADMIN_INITIAL_PASSWORD` using the password login (click "Acceso de administrador")
 3. Confirm the Admin and Logs tabs load without errors
-4. **Change the admin password immediately** using `change_password.py`:
-   - Temporarily replace `DATABASE_URL` in `backend/.env` with the External Database URL from step 2
-   - Run: `venv/bin/python change_password.py`
-   - Restore `backend/.env` to the local value after
+
+To change the admin password at any point, use the Render Shell on the backend service:
+```
+python change_password.py
+```
 
 ---
 

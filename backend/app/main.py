@@ -29,13 +29,14 @@ def startup():
 
 
 def _seed_admin():
+    initial_password = os.getenv("ADMIN_INITIAL_PASSWORD", "admin123")
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM users WHERE username = 'admin'")
             if not cur.fetchone():
                 cur.execute(
                     "INSERT INTO users (username, password_hash, role, is_superuser) VALUES (%s, %s, %s, %s)",
-                    ("admin", hash_password("admin123"), "admin", True),
+                    ("admin", hash_password(initial_password), "admin", True),
                 )
 
 
