@@ -127,14 +127,16 @@ python change_password.py
    ```
 
 4. Run the xlwings post-install step (required once on Windows):
-   ```
-   python -c "import xlwings; print(xlwings.__file__)"
-   ```
-   Copy the path printed, go up two folders to find `pywin32_postinstall.py`, then run:
-   ```
-   python C:\path\to\pywin32_postinstall.py -install
-   ```
-   If it says "Shortcut creation skipped" that's fine — the important part is no errors.
+   - Find the xlwings install path:
+     ```
+     python -c "import xlwings; print(xlwings.__file__)"
+     ```
+     This prints something like `C:\Users\Name\...\site-packages\xlwings\__init__.py`
+   - Take that path, remove `xlwings\__init__.py` from the end, and add `pywin32_postinstall.py`:
+     ```
+     python C:\Users\Name\...\site-packages\pywin32_postinstall.py -install
+     ```
+   - "Shortcut creation skipped" in the output is fine — no errors is what matters.
 
 5. Open Excel with the client's workbook before continuing.
 

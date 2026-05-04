@@ -137,13 +137,16 @@ El PC de trabajo ejecuta un script en segundo plano que lee el Excel en vivo y e
    ```
 
 4. Ejecutar el paso de post-instalación requerido por xlwings en Windows (solo una vez):
-   ```
-   python -c "import xlwings; print(xlwings.__file__)"
-   ```
-   Copiar la ruta que imprime, subir dos carpetas para encontrar `pywin32_postinstall.py`, y ejecutar:
-   ```
-   python C:\ruta\hasta\pywin32_postinstall.py -install
-   ```
+   - Obtener la ruta de instalación de xlwings:
+     ```
+     python -c "import xlwings; print(xlwings.__file__)"
+     ```
+     Imprime algo como `C:\Users\Nombre\...\site-packages\xlwings\__init__.py`
+   - Tomar esa ruta, eliminar `xlwings\__init__.py` del final, y agregar `pywin32_postinstall.py`:
+     ```
+     python C:\Users\Nombre\...\site-packages\pywin32_postinstall.py -install
+     ```
+   - Si dice "Shortcut creation skipped" es normal — lo importante es que no haya errores.
 
 5. Abrir Excel con el archivo de datos antes de continuar.
 
