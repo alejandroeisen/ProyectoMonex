@@ -82,44 +82,21 @@ SELECT id, username, email, role, is_superuser, created_at FROM users;
 
 ## Cambiar la contraseña de la cuenta de administrador
 
-La cuenta `admin` (acceso de emergencia con contraseña) no usa Google. Para cambiar su contraseña usar el script incluido en el proyecto.
-
-**Requisitos:** Python 3.10+, dependencias del backend instaladas, y el archivo `backend/.env` configurado con `DATABASE_URL` apuntando a la base de datos correcta.
-
-**Importante:** el script debe conectarse a la base de datos de producción (Render). Para eso, reemplazar temporalmente el valor de `DATABASE_URL` en `backend/.env` con la **External Database URL** que aparece en Render → PostgreSQL → Info. Una vez ejecutado el script, restaurar el valor original.
+La cuenta `admin` (acceso de emergencia con contraseña) no usa Google. Para cambiar su contraseña se usa la consola del servidor en Render — no requiere instalar nada localmente.
 
 **Pasos:**
 
-1. Desde la carpeta `backend/`, activar el entorno virtual e instalar dependencias si no están instaladas:
-
-```bash
-# Linux / Mac
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-
-# Windows
-python -m venv venv
-venv\Scripts\pip install -r requirements.txt
-```
-
-2. Ejecutar el script:
-
-```bash
-# Linux / Mac
-venv/bin/python change_password.py
-
-# Windows
-venv\Scripts\python change_password.py
-```
-
+1. Ir a [dashboard.render.com](https://dashboard.render.com) → el servicio backend → pestaña **Shell**
+2. Ejecutar:
+   ```
+   python change_password.py
+   ```
 3. El script pedirá la nueva contraseña dos veces (mínimo 8 caracteres). No se muestra mientras se escribe.
-
 4. Verificar que el login con la nueva contraseña funciona antes de cerrar la sesión actual.
 
-Para cambiar la contraseña de otro usuario (no `admin`):
-
-```bash
-venv/bin/python change_password.py --username nombre_usuario
+Para cambiar la contraseña de otro usuario:
+```
+python change_password.py --username nombre_usuario
 ```
 
 ---
