@@ -68,20 +68,20 @@ Tables and the `admin` user are created automatically on first startup, using `A
 
 ## 4. Render Frontend (Static Site)
 
-Set the real values in `frontend/.env.production`, commit, and push before deploying:
-
-```
-VITE_API_URL=https://[backend-url].onrender.com
-VITE_GOOGLE_CLIENT_ID=[client ID from step 1]
-```
-
-Then create → **New Static Site** → connect the repo.
+Create → **New Static Site** → connect the repo.
 
 | Setting | Value |
 |---|---|
 | Root directory | `frontend` |
 | Build command | `npm install && npm run build` |
 | Publish directory | `dist` |
+
+Build environment variables (Vite bakes these in at build time):
+
+| Variable | Value |
+|---|---|
+| `VITE_API_URL` | Backend Render URL from step 3 |
+| `VITE_GOOGLE_CLIENT_ID` | Client ID from step 1 |
 
 Deploy. Once you have the frontend URL, go back to step 3 → `ALLOWED_ORIGINS` → set it to the frontend URL → save (triggers a backend redeploy).
 
