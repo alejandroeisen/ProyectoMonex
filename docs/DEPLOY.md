@@ -17,16 +17,29 @@ Second output → `SYNC_API_KEY` (also goes in the Work PC `.env`)
 
 ---
 
-## 1. Render PostgreSQL
+## 1. Google Cloud — create OAuth client
+
+This must be done under the client's Google account (or a Google Cloud project they own), so the OAuth consent screen is tied to their organization.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project
+2. Enable the **Google+ API** (or **Google Identity**)
+3. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+   - Application type: **Web application**
+   - Authorized JavaScript origins: add the frontend Render URL once you have it (step 3) — you can come back and add it after
+4. Copy the generated **Client ID** — you'll need it in steps 2 and 3
+
+---
+
+## 2. Render PostgreSQL
 
 Create → **New PostgreSQL** on Render. Once provisioned:
 
-- Copy the **Internal Database URL** — used for `DATABASE_URL` in the backend service (step 2)
+- Copy the **Internal Database URL** — used for `DATABASE_URL` in the backend service (step 3)
 - Copy the **External Database URL** — keep it aside for running `change_password.py` locally later
 
 ---
 
-## 2. Render Backend (Web Service)
+## 3. Render Backend (Web Service)
 
 Create → **New Web Service** → connect the repo.
 
@@ -40,23 +53,30 @@ Environment variables to set:
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | Internal Database URL from step 1 |
+| `DATABASE_URL` | Internal Database URL from step 2 |
 | `SECRET_KEY` | Generated in step 0 |
 | `SYNC_API_KEY` | Generated in step 0 |
-| `GOOGLE_CLIENT_ID` | `447376070623-teri6gj21dkj3h55makkmv4f9jf9pcg1.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_ID` | Client ID from step 1 |
 | `ALLOWED_DOMAIN` | `monex.cl` |
-| `ALLOWED_ORIGINS` | Frontend Render URL (fill in after step 3, e.g. `https://proyectomonex.onrender.com`) |
+| `ALLOWED_ORIGINS` | Frontend Render URL (fill in after step 4, e.g. `https://proyectomonex.onrender.com`) |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` |
 
 Deploy. Once live, confirm it's up: `GET https://[backend-url]/health` should return `{"status":"ok"}`.
 
-The tables and default `admin` user are created automatically on first startup (`init_db` runs at startup).
+Tables and the default `admin` user are created automatically on first startup.
 
 ---
 
-## 3. Render Frontend (Static Site)
+## 4. Render Frontend (Static Site)
 
-Create → **New Static Site** → connect the repo.
+Before deploying, update `frontend/.env.production` in the repo with the real values:
+
+```
+VITE_API_URL=https://[backend-url].onrender.com
+VITE_GOOGLE_CLIENT_ID=[client ID from step 1]
+```
+
+Then create → **New Static Site** → connect the repo.
 
 | Setting | Value |
 |---|---|
@@ -64,46 +84,46 @@ Create → **New Static Site** → connect the repo.
 | Build command | `npm install && npm run build` |
 | Publish directory | `dist` |
 
-Build environment variables:
+Build environment variables (these override `.env.production` on Render):
 
 | Variable | Value |
 |---|---|
-| `VITE_API_URL` | Backend Render URL from step 2 |
-| `VITE_GOOGLE_CLIENT_ID` | `447376070623-teri6gj21dkj3h55makkmv4f9jf9pcg1.apps.googleusercontent.com` |
+| `VITE_API_URL` | Backend Render URL from step 3 |
+| `VITE_GOOGLE_CLIENT_ID` | Client ID from step 1 |
 
-Deploy. Note the frontend URL — go back to step 2 and fill in `ALLOWED_ORIGINS` if you haven't already (triggers a redeploy of the backend).
+Deploy. Note the frontend URL — go back to step 3 and fill in `ALLOWED_ORIGINS`, which will trigger a backend redeploy.
 
 ---
 
-## 4. Google Cloud Console
+## 5. Google Cloud — add authorized origin
 
-[console.cloud.google.com](https://console.cloud.google.com) → the dashboard project → **APIs & Services** → **Credentials** → the OAuth 2.0 client → **Authorized JavaScript origins** → add the frontend Render URL:
+Back in Google Cloud Console → the OAuth client from step 1 → **Authorized JavaScript origins** → add:
 
 ```
 https://[frontend-url].onrender.com
 ```
 
-Without this, Google will reject the OAuth login with an `origin_mismatch` error.
+Without this, Google rejects the OAuth login with an `origin_mismatch` error.
 
 ---
 
-## 5. Post-deploy checks
+## 6. Post-deploy checks
 
 1. Open the frontend URL — the login screen should appear
 2. Log in with `admin` / `admin123` using the password login (click "Acceso de administrador")
 3. Confirm the Admin and Logs tabs load without errors
 4. **Change the admin password immediately** using `change_password.py`:
-   - Temporarily replace `DATABASE_URL` in `backend/.env` with the External Database URL from step 1
+   - Temporarily replace `DATABASE_URL` in `backend/.env` with the External Database URL from step 2
    - Run: `venv/bin/python change_password.py`
    - Restore `backend/.env` to the local value after
 
 ---
 
-## 6. Work PC setup
+## 7. Work PC setup
 
 1. Copy the `sync/` folder to the Work PC (any path, e.g. `C:\Monex\sync\`)
 2. Copy `sync/.env.example` → `sync/.env` and fill in:
-   - `MINIPC_API_URL` = backend Render URL
+   - `MINIPC_API_URL` = backend Render URL from step 3
    - `SYNC_API_KEY` = the key generated in step 0
    - `EXCEL_WORKBOOK_NAME` = partial name of the client's workbook
 3. Open a terminal in `sync/` and run:
@@ -117,7 +137,7 @@ Without this, Google will reject the OAuth login with an `origin_mismatch` error
 
 ---
 
-## 7. Handoff
+## 8. Handoff
 
 - Share the frontend URL with the client
 - Walk through `docs/USER_ACCESS.md` with whoever will be the admin
