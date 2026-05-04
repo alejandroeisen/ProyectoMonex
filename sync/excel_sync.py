@@ -10,15 +10,32 @@ import openpyxl
 import psycopg2
 import psycopg2.extras
 import json
+import logging
 import os
 import sys
 import time
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../backend/.env'))
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+_LOG_PATH = os.getenv(
+    "SYNC_LOG_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sync.log')
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        RotatingFileHandler(_LOG_PATH, maxBytes=1_000_000, backupCount=3, encoding='utf-8'),
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 def serialize_value(val):
@@ -34,21 +51,21 @@ def serialize_value(val):
 
 def sync_excel(file_path: str):
     timestamp = datetime.now().strftime('%H:%M:%S')
-    print(f"[{timestamp}] Syncing: {file_path}")
+    logger.info(f"[{timestamp}] Syncing: {file_path}")
 
     try:
         wb = openpyxl.load_workbook(file_path, data_only=True)
     except FileNotFoundError:
-        print(f"  ERROR: File not found: {file_path}")
+        logger.info(f"  ERROR: File not found: {file_path}")
         return False
     except Exception as e:
-        print(f"  ERROR: Could not open file: {e}")
+        logger.info(f"  ERROR: Could not open file: {e}")
         return False
 
     try:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     except Exception as e:
-        print(f"  ERROR: Could not connect to database: {e}")
+        logger.info(f"  ERROR: Could not connect to database: {e}")
         return False
 
     try:
@@ -57,7 +74,7 @@ def sync_excel(file_path: str):
             all_rows = list(ws.iter_rows(values_only=True))
 
             if not all_rows or not any(all_rows[0]):
-                print(f"  Skipping '{sheet_name}': empty or no headers")
+                logger.info(f"  Skipping '{sheet_name}': empty or no headers")
                 continue
 
             headers = [str(h).strip() for h in all_rows[0] if h is not None]
@@ -90,14 +107,14 @@ def sync_excel(file_path: str):
                     )
 
             conn.commit()
-            print(f"  '{sheet_name}': {len(data_rows)} rows, {len(headers)} columns")
+            logger.info(f"  '{sheet_name}': {len(data_rows)} rows, {len(headers)} columns")
 
-        print(f"  Sync complete.\n")
+        logger.info(f"  Sync complete.\n")
         return True
 
     except Exception as e:
         conn.rollback()
-        print(f"  ERROR during sync: {e}")
+        logger.info(f"  ERROR during sync: {e}")
         return False
     finally:
         conn.close()
@@ -107,9 +124,9 @@ def run_once(file_path: str):
     sync_excel(file_path)
 
 
-def run_loop(file_path: str, interval_seconds: int = 300):
+def run_loop(file_path: str, interval_seconds: int = 5):
     """Run sync continuously, every interval_seconds. Resilient to failures."""
-    print(f"Starting sync loop — interval: {interval_seconds}s — file: {file_path}\n")
+    logger.info(f"Starting sync loop — interval: {interval_seconds}s — file: {file_path}\n")
     while True:
         sync_excel(file_path)
         time.sleep(interval_seconds)
@@ -123,7 +140,7 @@ if __name__ == "__main__":
 
     # Pass --loop to run continuously, otherwise runs once
     if "--loop" in sys.argv:
-        interval = int(os.getenv("SYNC_INTERVAL_SECONDS", "300"))
+        interval = int(os.getenv("SYNC_INTERVAL_SECONDS", "5"))
         run_loop(path, interval)
     else:
         run_once(path)

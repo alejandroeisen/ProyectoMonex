@@ -49,4 +49,23 @@ def init_db():
                     row_data JSONB NOT NULL,
                     synced_at TIMESTAMP DEFAULT NOW()
                 );
+                        
+                CREATE TABLE IF NOT EXISTS user_sheets (
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    sheet_id INTEGER REFERENCES sheets(id) ON DELETE CASCADE,
+                    PRIMARY KEY (user_id, sheet_id)
+                );
+            """)
+            # Safe migrations: add columns to existing DBs without breaking new ones
+            cur.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE;
+            """)
+            cur.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;
+            """)
+            cur.execute("""
+                ALTER TABLE users
+                ALTER COLUMN password_hash DROP NOT NULL;
             """)
