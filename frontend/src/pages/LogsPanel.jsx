@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getStatus } from '../api';
 import './LogsPanel.css';
 
-const REFRESH_INTERVAL = 5_000;
+const REFRESH_INTERVAL = 15_000;
 const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
 function formatDate(iso) {

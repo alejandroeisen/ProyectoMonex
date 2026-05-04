@@ -132,6 +132,44 @@ Cambiar la contraseña inicial (`admin123`) tras la entrega del sistema siguiend
 
 ---
 
+## Configuración del PC de trabajo (sincronización con Excel)
+
+El PC de trabajo ejecuta un script en segundo plano que lee el Excel en vivo y envía los datos al servidor. Se configura una sola vez.
+
+**Requisitos previos:**
+- Python 3.10 o superior instalado ([python.org](https://www.python.org/downloads/))
+- Excel abierto con el archivo de datos cargado
+- Conexión a internet
+
+**Pasos:**
+
+1. Copiar la carpeta `sync/` del proyecto a cualquier ubicación en el PC (por ejemplo `C:\Monex\sync\`)
+
+2. Dentro de esa carpeta, copiar `.env.example` y renombrarlo a `.env`. Completar los valores:
+   ```
+   MINIPC_API_URL=https://[url-del-backend].onrender.com
+   SYNC_API_KEY=[clave-provista-por-el-administrador]
+   EXCEL_WORKBOOK_NAME=[nombre-parcial-del-archivo-xlsx]
+   PUSH_INTERVAL_SECONDS=15
+   EXCLUDED_SHEETS=
+   ```
+
+3. Abrir una terminal (`cmd`) en la carpeta `sync/` e instalar las dependencias:
+   ```
+   pip install requests python-dotenv openpyxl xlwings
+   ```
+
+4. Hacer clic derecho sobre `registrar_tarea.bat` → **Ejecutar como administrador**. Confirmar el mensaje de éxito.
+
+A partir de ese momento, el script se inicia automáticamente al encender el PC y se reinicia solo si falla. Para verificar que está corriendo, abrir **Programador de tareas** y buscar `Monex Excel Push`. Los registros de actividad se guardan en `sync\excel_push.log`.
+
+Para iniciar el script manualmente sin reiniciar el PC, ejecutar en una terminal:
+```
+schtasks /run /tn "Monex Excel Push"
+```
+
+---
+
 ## Migración de dominio
 
 Al migrar el sistema al dominio del cliente (`monex.cl`):

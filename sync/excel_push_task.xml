@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Sincroniza datos de Excel con el servidor Monex en Render. No cerrar ni deshabilitar esta tarea.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <!--
+      Fires at logon, then repeats every 30 minutes.
+      With MultipleInstancesPolicy=IgnoreNew, repeat triggers do nothing
+      while the push script is already running — they only restart it if
+      it crashed and exhausted the RestartOnFailure retries below.
+    -->
+    <LogonTrigger>
+      <Repetition>
+        <Interval>PT30M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <Enabled>true</Enabled>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>10</Count>
+    </RestartOnFailure>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <WakeToRun>false</WakeToRun>
+    <Enabled>true</Enabled>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>PLACEHOLDER_SYNC_DIR\start_push.bat</Command>
+      <WorkingDirectory>PLACEHOLDER_SYNC_DIR</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

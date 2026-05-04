@@ -40,7 +40,7 @@ export default function Dashboard({ user, token, onLogout }) {
         }
     }
 
-    // Auto-refresh active sheet every 5 seconds
+    // Auto-refresh active sheet every 15 seconds
     useEffect(() => {
         if (!activeSheet) return;
         const interval = setInterval(async () => {
@@ -52,11 +52,11 @@ export default function Dashboard({ user, token, onLogout }) {
                 // Keep showing last known data, flag it as potentially stale
                 setIsStale(true);
             }
-        }, 5000);
+        }, 15000);
         return () => clearInterval(interval);
     }, [activeSheet]);
 
-    // Retry loading the sheets list every 10s if it failed on mount (e.g. DB was down)
+    // Retry loading the sheets list every 15s if it failed on mount (e.g. DB was down)
     useEffect(() => {
         if (sheets.length > 0) return;
         const interval = setInterval(() => {
@@ -68,7 +68,7 @@ export default function Dashboard({ user, token, onLogout }) {
                     }
                 })
                 .catch(() => {});
-        }, 5000);
+        }, 15000);
         return () => clearInterval(interval);
     }, [sheets.length]);
 
