@@ -79,10 +79,88 @@ def serialize_value(val):
     return val
 
 
+def _is_title_row(row: list) -> bool:
+    """A title row has exactly one non-None cell and its value starts with ##."""
+    non_none = [v for v in row if v is not None]
+    return len(non_none) == 1 and isinstance(non_none[0], str) and non_none[0].strip().startswith("##")
+
+
+def _extract_title(row: list) -> str:
+    val = next(v for v in row if v is not None)
+    return str(val).strip().lstrip("#").strip()
+
+
+def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
+    """
+    Parse raw rows from one Excel sheet into one or more table dicts.
+
+    If any ## marker rows are found, the sheet is split into named tables:
+      - A row with a single cell starting with ## begins a new table.
+      - The next non-empty row after the title is the header row.
+      - All subsequent rows until the next ## row are data (blank rows ignored).
+
+    If no ## markers exist the whole sheet is treated as one table (backward
+    compatible): first non-empty row = headers, rest = data.
+    """
+    has_markers = any(_is_title_row(r) for r in raw_rows)
+
+    if not has_markers:
+        non_empty = [r for r in raw_rows if any(v is not None for v in r)]
+        if not non_empty:
+            return []
+        headers = [str(h).strip() for h in non_empty[0] if h is not None]
+        if not headers:
+            return []
+        rows_serialized = _build_rows(headers, non_empty[1:])
+        logger.debug(f"  '{sheet_name}' (no ## markers): {len(rows_serialized)} rows, {len(headers)} cols")
+        return [{"name": sheet_name, "columns": headers, "rows": rows_serialized}]
+
+    tables = []
+    current_title: str | None = None
+    current_headers: list | None = None
+    current_data: list = []
+
+    for row in raw_rows:
+        if _is_title_row(row):
+            _flush_table(tables, current_title, current_headers, current_data)
+            current_title = _extract_title(row) or f"Tabla {len(tables) + 1}"
+            current_headers = None
+            current_data = []
+        elif all(v is None for v in row):
+            continue  # blank row — skip regardless of position
+        elif current_title is not None and current_headers is None:
+            headers = [str(h).strip() for h in row if h is not None]
+            if headers:
+                current_headers = headers
+        elif current_headers is not None:
+            current_data.append(row)
+
+    _flush_table(tables, current_title, current_headers, current_data)
+    return tables
+
+
+def _build_rows(headers: list, data_rows: list) -> list[dict]:
+    return [
+        {headers[j]: serialize_value(row[j] if j < len(row) else None)
+         for j in range(len(headers))}
+        for row in data_rows
+    ]
+
+
+def _flush_table(tables: list, title: str | None, headers: list | None, data: list):
+    if not title or not headers:
+        if title and not headers:
+            logger.warning(f"  Table '{title}' has no header row — skipped.")
+        return
+    rows_serialized = _build_rows(headers, data)
+    logger.debug(f"  Table '{title}': {len(rows_serialized)} rows, {len(headers)} cols")
+    tables.append({"name": title, "columns": headers, "rows": rows_serialized})
+
+
 def read_via_xlwings() -> list[dict] | None:
     """
     Connect to the running Excel process via xlwings and read all sheets.
-    Returns a list of sheet dicts, or None if Excel is unavailable.
+    Returns a flat list of table dicts (one per ## section, or one per sheet).
     """
     try:
         import xlwings as xw
@@ -98,7 +176,6 @@ def read_via_xlwings() -> list[dict] | None:
         logger.warning("Excel is not running — skipping this cycle.")
         return None
 
-    # Find the target workbook
     try:
         if EXCEL_WORKBOOK_NAME:
             wb = next(
@@ -120,7 +197,7 @@ def read_via_xlwings() -> list[dict] | None:
         logger.error(f"Error accessing workbooks: {e}")
         return None
 
-    sheets = []
+    all_tables = []
     try:
         for sheet in wb.sheets:
             sheet_name = sheet.name
@@ -129,10 +206,7 @@ def read_via_xlwings() -> list[dict] | None:
                 logger.debug(f"Skipping '{sheet_name}': excluded.")
                 continue
 
-            raw = sheet.used_range.value  # list of lists, live in-memory values
-
-            # Normalize: xlwings returns a single value, a flat list (one row),
-            # or a list of lists depending on the range size
+            raw = sheet.used_range.value
             if raw is None:
                 logger.debug(f"Skipping '{sheet_name}': empty.")
                 continue
@@ -141,37 +215,18 @@ def read_via_xlwings() -> list[dict] | None:
             elif raw and not isinstance(raw[0], list):
                 raw = [raw]
 
-            if not any(v is not None for v in raw[0]):
-                logger.debug(f"Skipping '{sheet_name}': no headers.")
-                continue
-
-            headers = [str(h).strip() for h in raw[0] if h is not None]
-            data_rows = [r for r in raw[1:] if any(v is not None for v in r)]
-
-            rows_serialized = [
-                {headers[j]: serialize_value(row[j] if j < len(row) else None)
-                 for j in range(len(headers))}
-                for row in data_rows
-            ]
-
-            sheets.append({
-                "name": sheet_name,
-                "columns": headers,
-                "rows": rows_serialized,
-            })
-            logger.debug(f"  Read '{sheet_name}': {len(data_rows)} rows, {len(headers)} cols")
+            logger.debug(f"Sheet '{sheet_name}':")
+            all_tables.extend(parse_tables_from_rows(raw, sheet_name))
 
     except Exception as e:
         logger.error(f"Error reading workbook '{wb.name}': {e}")
         return None
 
-    return sheets
+    return all_tables
 
 
 def read_via_openpyxl(file_path: str) -> list[dict] | None:
-    """
-    Read from a static .xlsx file. Used in dev/testing mode.
-    """
+    """Read from a static .xlsx file. Used in dev/testing mode."""
     try:
         import openpyxl
         wb = openpyxl.load_workbook(file_path, data_only=True)
@@ -182,36 +237,23 @@ def read_via_openpyxl(file_path: str) -> list[dict] | None:
         logger.error(f"Could not open file '{file_path}': {e}")
         return None
 
-    sheets = []
+    all_tables = []
     for sheet_name in wb.sheetnames:
         if sheet_name in EXCLUDED_SHEETS:
             logger.debug(f"Skipping '{sheet_name}': excluded.")
             continue
 
         ws = wb[sheet_name]
-        all_rows = list(ws.iter_rows(values_only=True))
+        raw_rows = [list(row) for row in ws.iter_rows(values_only=True)]
 
-        if not all_rows or not any(v is not None for v in all_rows[0]):
-            logger.debug(f"Skipping '{sheet_name}': empty or no headers.")
+        if not raw_rows:
+            logger.debug(f"Skipping '{sheet_name}': empty.")
             continue
 
-        headers = [str(h).strip() for h in all_rows[0] if h is not None]
-        data_rows = [r for r in all_rows[1:] if any(v is not None for v in r)]
+        logger.debug(f"Sheet '{sheet_name}':")
+        all_tables.extend(parse_tables_from_rows(raw_rows, sheet_name))
 
-        rows_serialized = [
-            {headers[j]: serialize_value(row[j] if j < len(row) else None)
-             for j in range(len(headers))}
-            for row in data_rows
-        ]
-
-        sheets.append({
-            "name": sheet_name,
-            "columns": headers,
-            "rows": rows_serialized,
-        })
-        logger.debug(f"  Read '{sheet_name}': {len(data_rows)} rows, {len(headers)} cols")
-
-    return sheets
+    return all_tables
 
 
 # ── HTTP push ─────────────────────────────────────────────────────────────────
