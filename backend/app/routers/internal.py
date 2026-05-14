@@ -27,6 +27,7 @@ router = APIRouter(include_in_schema=False)   # hidden from public API docs
 
 class SheetPayload(BaseModel):
     name: str
+    source_sheet: str | None = None
     columns: list[str]
     rows: list[dict]
 
@@ -59,13 +60,14 @@ def receive_push(payload: PushPayload, x_api_key: str = Header(...)):
             for sheet in payload.sheets:
                 # Upsert sheet metadata
                 cur.execute("""
-                    INSERT INTO sheets (name, display_name, columns, last_synced_at)
-                    VALUES (%s, %s, %s::jsonb, NOW())
+                    INSERT INTO sheets (name, display_name, source_sheet, columns, last_synced_at)
+                    VALUES (%s, %s, %s, %s::jsonb, NOW())
                     ON CONFLICT (name) DO UPDATE SET
+                        source_sheet   = EXCLUDED.source_sheet,
                         columns        = EXCLUDED.columns,
                         last_synced_at = NOW()
                     RETURNING id
-                """, (sheet.name, sheet.name, json.dumps(sheet.columns)))
+                """, (sheet.name, sheet.name, sheet.source_sheet, json.dumps(sheet.columns)))
                 sheet_id = cur.fetchone()["id"]
 
                 # Replace all rows for this sheet

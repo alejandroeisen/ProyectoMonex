@@ -8,6 +8,7 @@ import './Dashboard.css';
 export default function Dashboard({ user, token, onLogout }) {
     const [sheets, setSheets] = useState([]);
     const [activeSheet, setActiveSheet] = useState(null);
+    const [expandedGroups, setExpandedGroups] = useState({});
     const [sheetData, setSheetData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -18,6 +19,9 @@ export default function Dashboard({ user, token, onLogout }) {
         getSheets(token)
             .then(data => {
                 setSheets(data);
+                const groups = {};
+                data.forEach(s => { if (s.source_sheet) groups[s.source_sheet] = true; });
+                setExpandedGroups(groups);
                 if (data.length > 0) selectSheet(data[0]);
             })
             .catch(err => setError(err.message));
@@ -88,15 +92,51 @@ export default function Dashboard({ user, token, onLogout }) {
                     {sheets.length === 0 && (
                         <p className="sidebar-empty">Tablas no sincronizadas.</p>
                     )}
-                    {sheets.map(sheet => (
-                        <button
-                            key={sheet.id}
-                            className={`sidebar-item ${view === 'data' && activeSheet?.id === sheet.id ? 'active' : ''}`}
-                            onClick={() => selectSheet(sheet)}
-                        >
-                            {sheet.display_name || sheet.name}
-                        </button>
-                    ))}
+                    {(() => {
+                        const grouped = {};
+                        const ungrouped = [];
+                        sheets.forEach(s => {
+                            if (s.source_sheet) {
+                                if (!grouped[s.source_sheet]) grouped[s.source_sheet] = [];
+                                grouped[s.source_sheet].push(s);
+                            } else {
+                                ungrouped.push(s);
+                            }
+                        });
+                        return (
+                            <>
+                                {Object.entries(grouped).map(([group, children]) => (
+                                    <div key={group}>
+                                        <button
+                                            className="sidebar-group"
+                                            onClick={() => setExpandedGroups(g => ({ ...g, [group]: !g[group] }))}
+                                        >
+                                            <span className="sidebar-group-arrow">{expandedGroups[group] ? '▾' : '▸'}</span>
+                                            {group}
+                                        </button>
+                                        {expandedGroups[group] && children.map(sheet => (
+                                            <button
+                                                key={sheet.id}
+                                                className={`sidebar-item sidebar-subitem ${view === 'data' && activeSheet?.id === sheet.id ? 'active' : ''}`}
+                                                onClick={() => selectSheet(sheet)}
+                                            >
+                                                {sheet.display_name || sheet.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                                {ungrouped.map(sheet => (
+                                    <button
+                                        key={sheet.id}
+                                        className={`sidebar-item ${view === 'data' && activeSheet?.id === sheet.id ? 'active' : ''}`}
+                                        onClick={() => selectSheet(sheet)}
+                                    >
+                                        {sheet.display_name || sheet.name}
+                                    </button>
+                                ))}
+                            </>
+                        );
+                    })()}
 
                     {user.role === 'admin' && (
                         <>

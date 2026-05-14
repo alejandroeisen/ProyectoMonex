@@ -1,6 +1,18 @@
 import { useState, useMemo } from 'react';
 import './DataTable.css';
 
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function formatCell(val) {
+    if (val === null || val === undefined) return '—';
+    if (typeof val === 'string') {
+        // Match ISO date: 2026-05-14 or 2026-05-14T00:00:00...
+        const m = val.match(/^(\d{4})-(\d{2})-(\d{2})(T.*)?$/);
+        if (m) return `${parseInt(m[3])}-${MONTHS[parseInt(m[2]) - 1]}`;
+    }
+    return String(val);
+}
+
 export default function DataTable({ sheet, rows }) {
     const [filter, setFilter] = useState('');
     const [sortKey, setSortKey] = useState(null);
@@ -90,11 +102,7 @@ export default function DataTable({ sheet, rows }) {
                                 sortedRows.map((row, i) => (
                                     <tr key={i}>
                                         {columns.map(col => (
-                                            <td key={col}>
-                                                {row[col] !== null && row[col] !== undefined
-                                                    ? String(row[col])
-                                                    : '—'}
-                                            </td>
+                                            <td key={col}>{formatCell(row[col])}</td>
                                         ))}
                                     </tr>
                                 ))

@@ -80,25 +80,33 @@ def serialize_value(val):
 
 
 def _is_title_row(row: list) -> bool:
-    """A table-start row: exactly one non-None cell whose value starts with ##."""
-    non_none = [v for v in row if v is not None]
-    return (
-        len(non_none) == 1
-        and isinstance(non_none[0], str)
-        and non_none[0].strip().startswith("##")
-    )
+    """A table-start row: the first non-None cell within the first 10 columns
+    starts with ##. Cells beyond column 10 (e.g. RTD reference cells) are ignored.
+    """
+    for i, v in enumerate(row):
+        if i > 10:
+            break
+        if v is None:
+            continue
+        return isinstance(v, str) and v.strip().startswith("##")
+    return False
 
 
 def _is_stop_row(row: list) -> bool:
-    """A table-stop row: exactly one non-None cell starting with # but NOT ##.
-    Used to close the current table and discard trailing rows (e.g. summary
-    blocks, decorative sheet titles) without starting a new table.
+    """A table-stop row: the first non-None cell within the first 10 columns
+    starts with # but NOT ##. Cells beyond column 10 (e.g. RTD reference cells)
+    are ignored so they don't prevent the stop from being detected.
     """
-    non_none = [v for v in row if v is not None]
-    if len(non_none) != 1 or not isinstance(non_none[0], str):
-        return False
-    stripped = non_none[0].strip()
-    return stripped.startswith("#") and not stripped.startswith("##")
+    for i, v in enumerate(row):
+        if i > 10:
+            break
+        if v is None:
+            continue
+        if not isinstance(v, str):
+            return False
+        stripped = v.strip()
+        return stripped.startswith("#") and not stripped.startswith("##")
+    return False
 
 
 def _extract_title(row: list) -> str:
@@ -131,7 +139,7 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
             return []
         rows_serialized = _build_rows(headers, non_empty[1:])
         logger.debug(f"  '{sheet_name}' (no ## markers): {len(rows_serialized)} rows, {len(headers)} cols")
-        return [{"name": sheet_name, "columns": headers, "rows": rows_serialized}]
+        return [{"name": sheet_name, "source_sheet": sheet_name, "columns": headers, "rows": rows_serialized}]
 
     tables = []
     current_title: str | None = None
@@ -152,6 +160,9 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
         elif all(v is None for v in row):
             continue                                        # blank → skip
         elif current_title is not None and current_headers is None:
+            first_col = next((i for i, v in enumerate(row) if v is not None), None)
+            if first_col is not None and first_col > 10:
+                continue  # stray cells far off to the right — not a header row
             headers = [h.strip() for h in row if isinstance(h, str) and h.strip()]
             if headers:
                 current_headers = headers
@@ -180,7 +191,7 @@ def _flush_table(tables: list, title: str | None, headers: list | None, data: li
     tables.append({"name": title, "columns": headers, "rows": rows_serialized})
 
 
-def read_via_xlwings() -> list[dict] | None:
+def read_via_xlwings(only_sheet: str | None = None) -> list[dict] | None:
     """
     Connect to the running Excel process via xlwings and read all sheets.
     Returns a flat list of table dicts (one per ## section, or one per sheet).
@@ -229,6 +240,10 @@ def read_via_xlwings() -> list[dict] | None:
                 logger.debug(f"Skipping '{sheet_name}': excluded.")
                 continue
 
+            if only_sheet and sheet_name != only_sheet:
+                logger.debug(f"Skipping '{sheet_name}': not selected.")
+                continue
+
             raw = sheet.used_range.value
             if raw is None:
                 logger.debug(f"Skipping '{sheet_name}': empty.")
@@ -239,7 +254,10 @@ def read_via_xlwings() -> list[dict] | None:
                 raw = [raw]
 
             logger.debug(f"Sheet '{sheet_name}':")
-            all_tables.extend(parse_tables_from_rows(raw, sheet_name))
+            tables = parse_tables_from_rows(raw, sheet_name)
+            for t in tables:
+                t["source_sheet"] = sheet_name
+            all_tables.extend(tables)
 
     except Exception as e:
         logger.error(f"Error reading workbook '{wb.name}': {e}")
@@ -248,7 +266,7 @@ def read_via_xlwings() -> list[dict] | None:
     return all_tables
 
 
-def read_via_openpyxl(file_path: str) -> list[dict] | None:
+def read_via_openpyxl(file_path: str, only_sheet: str | None = None) -> list[dict] | None:
     """Read from a static .xlsx file. Used in dev/testing mode."""
     try:
         import openpyxl
@@ -266,6 +284,10 @@ def read_via_openpyxl(file_path: str) -> list[dict] | None:
             logger.debug(f"Skipping '{sheet_name}': excluded.")
             continue
 
+        if only_sheet and sheet_name != only_sheet:
+            logger.debug(f"Skipping '{sheet_name}': not selected.")
+            continue
+
         ws = wb[sheet_name]
         raw_rows = [list(row) for row in ws.iter_rows(values_only=True)]
 
@@ -274,7 +296,10 @@ def read_via_openpyxl(file_path: str) -> list[dict] | None:
             continue
 
         logger.debug(f"Sheet '{sheet_name}':")
-        all_tables.extend(parse_tables_from_rows(raw_rows, sheet_name))
+        tables = parse_tables_from_rows(raw_rows, sheet_name)
+        for t in tables:
+            t["source_sheet"] = sheet_name
+        all_tables.extend(tables)
 
     return all_tables
 
@@ -336,9 +361,9 @@ def flush_retry_queue():
 
 # ── Main cycle ────────────────────────────────────────────────────────────────
 
-def read_with_timeout(file_path: str | None, timeout: int = 15) -> list[dict] | None:
+def read_with_timeout(file_path: str | None, timeout: int = 15, only_sheet: str | None = None) -> list[dict] | None:
     """Run the Excel read in a thread with a timeout. Returns None if Excel is busy."""
-    fn = (lambda: read_via_openpyxl(file_path)) if file_path else read_via_xlwings
+    fn = (lambda: read_via_openpyxl(file_path, only_sheet)) if file_path else (lambda: read_via_xlwings(only_sheet))
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(fn)
         try:
@@ -348,12 +373,12 @@ def read_with_timeout(file_path: str | None, timeout: int = 15) -> list[dict] | 
             return None
 
 
-def run_cycle(file_path: str | None):
+def run_cycle(file_path: str | None, only_sheet: str | None = None):
     """Read Excel and push. Queues on failure."""
     logger.info("--- Sync cycle starting ---")
 
     t0 = time.perf_counter()
-    sheets = read_with_timeout(file_path)
+    sheets = read_with_timeout(file_path, only_sheet=only_sheet)
     read_ms = (time.perf_counter() - t0) * 1000
     logger.info(f"Excel read: {read_ms:.0f}ms")
 
@@ -377,11 +402,11 @@ def run_cycle(file_path: str | None):
         logger.warning(f"Queued for retry. Queue size: {len(retry_queue)}")
 
 
-def run_loop(file_path: str | None, interval: int):
+def run_loop(file_path: str | None, interval: int, only_sheet: str | None = None):
     mode = f"file: {file_path}" if file_path else "xlwings (live Excel)"
     logger.info(f"Starting push loop — interval: {interval}s — mode: {mode}")
     while True:
-        run_cycle(file_path)
+        run_cycle(file_path, only_sheet=only_sheet)
         logger.info(f"Sleeping {interval}s...\n")
         time.sleep(interval)
 
@@ -392,9 +417,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Excel → Mini PC push script")
     parser.add_argument("--file", metavar="PATH", help="Use openpyxl on a file instead of win32com")
     parser.add_argument("--loop", action="store_true", help="Run continuously")
+    parser.add_argument("--sheet", metavar="NAME", help="Only push this sheet (exact name)")
     args = parser.parse_args()
 
     if args.loop:
-        run_loop(args.file, PUSH_INTERVAL)
+        run_loop(args.file, PUSH_INTERVAL, only_sheet=args.sheet)
     else:
-        run_cycle(args.file)
+        run_cycle(args.file, only_sheet=args.sheet)
