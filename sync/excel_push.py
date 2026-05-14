@@ -80,9 +80,25 @@ def serialize_value(val):
 
 
 def _is_title_row(row: list) -> bool:
-    """A title row has exactly one non-None cell and its value starts with ##."""
+    """A table-start row: exactly one non-None cell whose value starts with ##."""
     non_none = [v for v in row if v is not None]
-    return len(non_none) == 1 and isinstance(non_none[0], str) and non_none[0].strip().startswith("##")
+    return (
+        len(non_none) == 1
+        and isinstance(non_none[0], str)
+        and non_none[0].strip().startswith("##")
+    )
+
+
+def _is_stop_row(row: list) -> bool:
+    """A table-stop row: exactly one non-None cell starting with # but NOT ##.
+    Used to close the current table and discard trailing rows (e.g. summary
+    blocks, decorative sheet titles) without starting a new table.
+    """
+    non_none = [v for v in row if v is not None]
+    if len(non_none) != 1 or not isinstance(non_none[0], str):
+        return False
+    stripped = non_none[0].strip()
+    return stripped.startswith("#") and not stripped.startswith("##")
 
 
 def _extract_title(row: list) -> str:
@@ -94,10 +110,12 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
     """
     Parse raw rows from one Excel sheet into one or more table dicts.
 
-    If any ## marker rows are found, the sheet is split into named tables:
-      - A row with a single cell starting with ## begins a new table.
-      - The next non-empty row after the title is the header row.
-      - All subsequent rows until the next ## row are data (blank rows ignored).
+    Multi-table mode is activated when any ## marker row is found:
+      - ## row  → flush current table, start a new named table.
+      - #  row  → flush current table, discard this row and everything after
+                  it until the next ## row.  Use it to close a table before
+                  summary/decorative rows, or as a sheet-level title to skip.
+      - blank   → always ignored.
 
     If no ## markers exist the whole sheet is treated as one table (backward
     compatible): first non-empty row = headers, rest = data.
@@ -108,7 +126,7 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
         non_empty = [r for r in raw_rows if any(v is not None for v in r)]
         if not non_empty:
             return []
-        headers = [str(h).strip() for h in non_empty[0] if h is not None]
+        headers = [h.strip() for h in non_empty[0] if isinstance(h, str) and h.strip()]
         if not headers:
             return []
         rows_serialized = _build_rows(headers, non_empty[1:])
@@ -121,15 +139,20 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
     current_data: list = []
 
     for row in raw_rows:
-        if _is_title_row(row):
+        if _is_title_row(row):                              # ## → new table
             _flush_table(tables, current_title, current_headers, current_data)
             current_title = _extract_title(row) or f"Tabla {len(tables) + 1}"
             current_headers = None
             current_data = []
+        elif _is_stop_row(row):                             # #  → close table
+            _flush_table(tables, current_title, current_headers, current_data)
+            current_title = None
+            current_headers = None
+            current_data = []
         elif all(v is None for v in row):
-            continue  # blank row — skip regardless of position
+            continue                                        # blank → skip
         elif current_title is not None and current_headers is None:
-            headers = [str(h).strip() for h in row if h is not None]
+            headers = [h.strip() for h in row if isinstance(h, str) and h.strip()]
             if headers:
                 current_headers = headers
         elif current_headers is not None:
