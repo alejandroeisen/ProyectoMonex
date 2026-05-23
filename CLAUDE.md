@@ -48,7 +48,7 @@ React frontend (auto-refreshes every 30s)
 ## Tech stack
 - **Backend**: Python, FastAPI, psycopg2, python-jose (JWT), bcrypt
 - **Frontend**: React (Vite), plain CSS — deployed on Render (static site)
-- **Database**: PostgreSQL on Render (JSONB for row data — flexible schema, different headers per sheet)
+- **Database**: PostgreSQL on Supabase (JSONB for row data — flexible schema, different headers per sheet)
 - **Push script**: `sync/excel_push.py` — xlwings (live Excel, Windows Work PC) or `--file` mode for dev/testing
 - **Auth**: JWT tokens stored in localStorage, 8-hour expiry
 - **Sync API key**: shared secret between push script and backend, compared with `secrets.compare_digest`
@@ -174,7 +174,7 @@ npm run dev
 ### Deployment (Render)
 - Backend: deploy as Render Web Service (Python), set env vars (DATABASE_URL, SECRET_KEY, SYNC_API_KEY, ALLOWED_ORIGINS)
 - Frontend: deploy as Render Static Site, set `VITE_API_URL` build env var
-- Database: Render PostgreSQL managed instance
+- Database: Supabase PostgreSQL (free tier, permanent — migrated from Render). Use Session Pooler connection string; percent-encode special chars in password.
 - Push script: Task Scheduler on Work PC (auto-start on login, restart on failure)
 
 ## Pending decisions / blockers
