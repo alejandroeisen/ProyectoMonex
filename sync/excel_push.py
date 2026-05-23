@@ -109,12 +109,96 @@ def _is_stop_row(row: list) -> bool:
     return False
 
 
+def _header_columns(row: list) -> list[str]:
+    headers = []
+    for v in row:
+        if v is None:
+            break
+        if isinstance(v, str) and v.strip():
+            headers.append(v.strip())
+    return headers
+
+
 def _extract_title(row: list) -> str:
     val = next(v for v in row if v is not None)
     return str(val).strip().lstrip("#").strip()
 
 
-def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
+# ── Cell formatting helpers ───────────────────────────────────────────────────
+
+def _fmt_openpyxl(cell) -> dict | None:
+    fmt = {}
+    try:
+        if cell.font and cell.font.bold:
+            fmt['bold'] = True
+    except Exception:
+        pass
+    try:
+        fill = cell.fill
+        if fill.patternType == 'solid':
+            fc = fill.fgColor
+            if fc.type == 'rgb' and len(fc.rgb) == 8 and fc.rgb[:2] != '00':
+                fmt['bg'] = f"#{fc.rgb[2:]}"
+    except Exception:
+        pass
+    try:
+        fc = cell.font.color
+        if fc and fc.type == 'rgb' and len(fc.rgb) == 8 and fc.rgb[:2] != '00':
+            fmt['color'] = f"#{fc.rgb[2:]}"
+    except Exception:
+        pass
+    return fmt if fmt else None
+
+
+def _colorref_to_hex(colorref: int) -> str:
+    r = colorref & 0xFF
+    g = (colorref >> 8) & 0xFF
+    b = (colorref >> 16) & 0xFF
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def _fmt_xlwings_cell(cell) -> dict | None:
+    fmt = {}
+    try:
+        if cell.api.Font.Bold:
+            fmt['bold'] = True
+    except Exception:
+        pass
+    try:
+        bg = cell.color  # (R, G, B) tuple or None = no fill
+        if bg is not None:
+            fmt['bg'] = f"#{bg[0]:02X}{bg[1]:02X}{bg[2]:02X}"
+    except Exception:
+        pass
+    try:
+        fc = cell.api.Font.Color  # COLORREF int
+        if fc != 0:  # 0 = black (default)
+            fmt['color'] = _colorref_to_hex(fc)
+    except Exception:
+        pass
+    return fmt if fmt else None
+
+
+def _read_fmt_xlwings(sheet) -> list[list] | None:
+    try:
+        used = sheet.used_range
+        first_row = used.row
+        first_col = used.column
+        nrows = used.rows.count
+        ncols = used.columns.count
+        fmt_rows = []
+        for r in range(first_row, first_row + nrows):
+            row_fmts = []
+            for c in range(first_col, first_col + ncols):
+                row_fmts.append(_fmt_xlwings_cell(sheet.cells(r, c)))
+            fmt_rows.append(row_fmts)
+        return fmt_rows
+    except Exception as e:
+        logger.debug(f"Could not read cell formatting: {e}")
+        return None
+
+
+def parse_tables_from_rows(raw_rows: list[list], sheet_name: str, raw_fmts: list[list] | None = None) -> list[dict]:
     """
     Parse raw rows from one Excel sheet into one or more table dicts.
 
@@ -131,13 +215,15 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
     has_markers = any(_is_title_row(r) for r in raw_rows)
 
     if not has_markers:
-        non_empty = [r for r in raw_rows if any(v is not None for v in r)]
-        if not non_empty:
+        non_empty_idx = [i for i, r in enumerate(raw_rows) if any(v is not None for v in r)]
+        if not non_empty_idx:
             return []
-        headers = [h.strip() for h in non_empty[0] if isinstance(h, str) and h.strip()]
+        headers = _header_columns(raw_rows[non_empty_idx[0]])
         if not headers:
             return []
-        rows_serialized = _build_rows(headers, non_empty[1:])
+        data_rows = [raw_rows[i] for i in non_empty_idx[1:]]
+        fmts = [raw_fmts[i] for i in non_empty_idx[1:]] if raw_fmts else None
+        rows_serialized = _build_rows(headers, data_rows, fmts)
         logger.debug(f"  '{sheet_name}' (no ## markers): {len(rows_serialized)} rows, {len(headers)} cols")
         return [{"name": sheet_name, "source_sheet": sheet_name, "columns": headers, "rows": rows_serialized}]
 
@@ -145,53 +231,67 @@ def parse_tables_from_rows(raw_rows: list[list], sheet_name: str) -> list[dict]:
     current_title: str | None = None
     current_headers: list | None = None
     current_data: list = []
+    current_fmts: list = []
 
-    for row in raw_rows:
+    for row_idx, row in enumerate(raw_rows):
         if _is_title_row(row):                              # ## → new table
-            _flush_table(tables, current_title, current_headers, current_data)
+            _flush_table(tables, current_title, current_headers, current_data,
+                         current_fmts if raw_fmts else None)
             current_title = _extract_title(row) or f"Tabla {len(tables) + 1}"
             current_headers = None
             current_data = []
+            current_fmts = []
         elif _is_stop_row(row):                             # #  → close table
-            _flush_table(tables, current_title, current_headers, current_data)
+            _flush_table(tables, current_title, current_headers, current_data,
+                         current_fmts if raw_fmts else None)
             current_title = None
             current_headers = None
             current_data = []
+            current_fmts = []
         elif all(v is None for v in row):
             continue                                        # blank → skip
         elif current_title is not None and current_headers is None:
-            first_col = next((i for i, v in enumerate(row) if v is not None), None)
-            if first_col is not None and first_col > 10:
-                continue  # stray cells far off to the right — not a header row
-            headers = [h.strip() for h in row if isinstance(h, str) and h.strip()]
+            headers = _header_columns(row)
             if headers:
                 current_headers = headers
         elif current_headers is not None:
             current_data.append(row)
+            if raw_fmts:
+                current_fmts.append(raw_fmts[row_idx] if row_idx < len(raw_fmts) else None)
 
-    _flush_table(tables, current_title, current_headers, current_data)
+    _flush_table(tables, current_title, current_headers, current_data,
+                 current_fmts if raw_fmts else None)
     return tables
 
 
-def _build_rows(headers: list, data_rows: list) -> list[dict]:
-    return [
-        {headers[j]: serialize_value(row[j] if j < len(row) else None)
-         for j in range(len(headers))}
-        for row in data_rows
-    ]
+def _build_rows(headers: list, data_rows: list, fmt_rows: list | None = None) -> list[dict]:
+    result = []
+    for i, row in enumerate(data_rows):
+        d = {headers[j]: serialize_value(row[j] if j < len(row) else None)
+             for j in range(len(headers))}
+        if fmt_rows and i < len(fmt_rows) and fmt_rows[i]:
+            row_fmt = fmt_rows[i]
+            fmt = {headers[j]: row_fmt[j]
+                   for j in range(len(headers))
+                   if j < len(row_fmt) and row_fmt[j]}
+            if fmt:
+                d['__fmt__'] = fmt
+        result.append(d)
+    return result
 
 
-def _flush_table(tables: list, title: str | None, headers: list | None, data: list):
+def _flush_table(tables: list, title: str | None, headers: list | None, data: list,
+                 fmts: list | None = None):
     if not title or not headers:
         if title and not headers:
             logger.warning(f"  Table '{title}' has no header row — skipped.")
         return
-    rows_serialized = _build_rows(headers, data)
+    rows_serialized = _build_rows(headers, data, fmts)
     logger.debug(f"  Table '{title}': {len(rows_serialized)} rows, {len(headers)} cols")
     tables.append({"name": title, "columns": headers, "rows": rows_serialized})
 
 
-def read_via_xlwings(only_sheet: str | None = None) -> list[dict] | None:
+def read_via_xlwings(only_sheet: list[str] | None = None) -> list[dict] | None:
     """
     Connect to the running Excel process via xlwings and read all sheets.
     Returns a flat list of table dicts (one per ## section, or one per sheet).
@@ -240,7 +340,7 @@ def read_via_xlwings(only_sheet: str | None = None) -> list[dict] | None:
                 logger.debug(f"Skipping '{sheet_name}': excluded.")
                 continue
 
-            if only_sheet and sheet_name != only_sheet:
+            if only_sheet and sheet_name not in only_sheet:
                 logger.debug(f"Skipping '{sheet_name}': not selected.")
                 continue
 
@@ -253,8 +353,9 @@ def read_via_xlwings(only_sheet: str | None = None) -> list[dict] | None:
             elif raw and not isinstance(raw[0], list):
                 raw = [raw]
 
+            fmt_rows = _read_fmt_xlwings(sheet)
             logger.debug(f"Sheet '{sheet_name}':")
-            tables = parse_tables_from_rows(raw, sheet_name)
+            tables = parse_tables_from_rows(raw, sheet_name, fmt_rows)
             for t in tables:
                 t["source_sheet"] = sheet_name
             all_tables.extend(tables)
@@ -266,7 +367,7 @@ def read_via_xlwings(only_sheet: str | None = None) -> list[dict] | None:
     return all_tables
 
 
-def read_via_openpyxl(file_path: str, only_sheet: str | None = None) -> list[dict] | None:
+def read_via_openpyxl(file_path: str, only_sheet: list[str] | None = None) -> list[dict] | None:
     """Read from a static .xlsx file. Used in dev/testing mode."""
     try:
         import openpyxl
@@ -284,19 +385,21 @@ def read_via_openpyxl(file_path: str, only_sheet: str | None = None) -> list[dic
             logger.debug(f"Skipping '{sheet_name}': excluded.")
             continue
 
-        if only_sheet and sheet_name != only_sheet:
+        if only_sheet and sheet_name not in only_sheet:
             logger.debug(f"Skipping '{sheet_name}': not selected.")
             continue
 
         ws = wb[sheet_name]
-        raw_rows = [list(row) for row in ws.iter_rows(values_only=True)]
+        ws_rows = list(ws.iter_rows())
+        raw_rows = [[cell.value for cell in row] for row in ws_rows]
+        fmt_rows = [[_fmt_openpyxl(cell) for cell in row] for row in ws_rows]
 
         if not raw_rows:
             logger.debug(f"Skipping '{sheet_name}': empty.")
             continue
 
         logger.debug(f"Sheet '{sheet_name}':")
-        tables = parse_tables_from_rows(raw_rows, sheet_name)
+        tables = parse_tables_from_rows(raw_rows, sheet_name, fmt_rows)
         for t in tables:
             t["source_sheet"] = sheet_name
         all_tables.extend(tables)
@@ -361,7 +464,7 @@ def flush_retry_queue():
 
 # ── Main cycle ────────────────────────────────────────────────────────────────
 
-def read_with_timeout(file_path: str | None, timeout: int = 15, only_sheet: str | None = None) -> list[dict] | None:
+def read_with_timeout(file_path: str | None, timeout: int = 15, only_sheet: list[str] | None = None) -> list[dict] | None:
     """Run the Excel read in a thread with a timeout. Returns None if Excel is busy."""
     fn = (lambda: read_via_openpyxl(file_path, only_sheet)) if file_path else (lambda: read_via_xlwings(only_sheet))
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -373,7 +476,7 @@ def read_with_timeout(file_path: str | None, timeout: int = 15, only_sheet: str 
             return None
 
 
-def run_cycle(file_path: str | None, only_sheet: str | None = None):
+def run_cycle(file_path: str | None, only_sheet: list[str] | None = None):
     """Read Excel and push. Queues on failure."""
     logger.info("--- Sync cycle starting ---")
 
@@ -402,7 +505,7 @@ def run_cycle(file_path: str | None, only_sheet: str | None = None):
         logger.warning(f"Queued for retry. Queue size: {len(retry_queue)}")
 
 
-def run_loop(file_path: str | None, interval: int, only_sheet: str | None = None):
+def run_loop(file_path: str | None, interval: int, only_sheet: list[str] | None = None):
     mode = f"file: {file_path}" if file_path else "xlwings (live Excel)"
     logger.info(f"Starting push loop — interval: {interval}s — mode: {mode}")
     while True:
@@ -417,7 +520,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Excel → Mini PC push script")
     parser.add_argument("--file", metavar="PATH", help="Use openpyxl on a file instead of win32com")
     parser.add_argument("--loop", action="store_true", help="Run continuously")
-    parser.add_argument("--sheet", metavar="NAME", help="Only push this sheet (exact name)")
+    parser.add_argument("--sheet", metavar="NAME", nargs="+", help="Only push these sheets (space-separated exact names)")
     args = parser.parse_args()
 
     if args.loop:

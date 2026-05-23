@@ -4,7 +4,7 @@ import './DataTable.css';
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 function formatCell(val) {
-    if (val === null || val === undefined) return '—';
+    if (val === null || val === undefined) return '';
     if (typeof val === 'string') {
         // Match ISO date: 2026-05-14 or 2026-05-14T00:00:00...
         const m = val.match(/^(\d{4})-(\d{2})-(\d{2})(T.*)?$/);
@@ -24,8 +24,8 @@ export default function DataTable({ sheet, rows }) {
         const term = filter.toLowerCase();
         if (!term) return rows;
         return rows.filter(row =>
-            Object.values(row).some(v =>
-                v !== null && String(v).toLowerCase().includes(term)
+            Object.entries(row).some(([k, v]) =>
+                k !== '__fmt__' && v !== null && String(v).toLowerCase().includes(term)
             )
         );
     }, [rows, filter]);
@@ -101,9 +101,15 @@ export default function DataTable({ sheet, rows }) {
                             ) : (
                                 sortedRows.map((row, i) => (
                                     <tr key={i}>
-                                        {columns.map(col => (
-                                            <td key={col}>{formatCell(row[col])}</td>
-                                        ))}
+                                        {columns.map(col => {
+                                            const fmt = row['__fmt__']?.[col];
+                                            const style = fmt ? {
+                                                fontWeight: fmt.bold ? 'bold' : undefined,
+                                                backgroundColor: fmt.bg,
+                                                color: fmt.color,
+                                            } : undefined;
+                                            return <td key={col} style={style}>{formatCell(row[col])}</td>;
+                                        })}
                                     </tr>
                                 ))
                             )}
