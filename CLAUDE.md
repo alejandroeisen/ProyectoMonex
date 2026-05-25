@@ -11,7 +11,7 @@ Internal financial dashboard built as a freelance project. Replaces an Excel-bas
 ## Current status
 Working dev setup. Login, sheet selector, data tables with search/sort, and frontend auto-refresh (every 30s) are functional. Push script reads live Excel via xlwings and POSTs to FastAPI, which writes to PostgreSQL. Tested end-to-end on Windows. Admin panel (user management, logs, permissions) built and tested.
 
-**Active branch**: `feature/render-with-admin` — merges push architecture + admin panel.
+**Active branch**: `feature/multi-table-parser` — multi-table Excel sheet support via `##` convention.
 
 ## Hardware setup (decided)
 - **Work PC**: Xenith license + Excel. Team uses this for daily work — they edit the file constantly (adding new rows for trades on different tables). Runs `excel_push.py` silently in the background.
@@ -48,7 +48,7 @@ React frontend (auto-refreshes every 30s)
 ## Tech stack
 - **Backend**: Python, FastAPI, psycopg2, python-jose (JWT), bcrypt
 - **Frontend**: React (Vite), plain CSS — deployed on Render (static site)
-- **Database**: PostgreSQL on Render (JSONB for row data — flexible schema, different headers per sheet)
+- **Database**: PostgreSQL on Supabase (JSONB for row data — flexible schema, different headers per sheet)
 - **Push script**: `sync/excel_push.py` — xlwings (live Excel, Windows Work PC) or `--file` mode for dev/testing
 - **Auth**: JWT tokens stored in localStorage, 8-hour expiry
 - **Sync API key**: shared secret between push script and backend, compared with `secrets.compare_digest`
@@ -159,10 +159,12 @@ npm run dev
 - ✅ Sidebar retries sheet list every 10s if initial load failed
 - ✅ Full test suite: 31 tests across auth, sheets, admin endpoints
 - ✅ Render deploy config: `VITE_API_URL`, `ALLOWED_ORIGINS`, `.env.production`
+- ✅ Multi-table parser: `##TableName` convention splits one Excel sheet into N named tables, each surfaced as a separate sidebar entry. Parser is in `sync/excel_push.py:parse_tables_from_rows()`.
 
 ## What's next
 
 ### Core / unblocked
+- **Frontend: render multiple tables per sheet** — parser is done; frontend still renders one table per sidebar entry. Need to verify sidebar entry = table name (not sheet name) end-to-end with backend.
 - **localStorage cache for last-seen sheet data** — so page loads while backend is down still show data
   - ~500KB total for real data (12 sheets, 1500 rows, 10 cols) — fits localStorage fine
   - Write only the active sheet per refresh (~38KB) — negligible
@@ -172,13 +174,36 @@ npm run dev
 ### Deployment (Render)
 - Backend: deploy as Render Web Service (Python), set env vars (DATABASE_URL, SECRET_KEY, SYNC_API_KEY, ALLOWED_ORIGINS)
 - Frontend: deploy as Render Static Site, set `VITE_API_URL` build env var
-- Database: Render PostgreSQL managed instance
+- Database: Supabase PostgreSQL (free tier, permanent — migrated from Render). Use Session Pooler connection string; percent-encode special chars in password.
 - Push script: Task Scheduler on Work PC (auto-start on login, restart on failure)
 
 ## Pending decisions / blockers
-- **Sheet layout**: pushing client to use one table per sheet (currently multiple tables per sheet — incompatible with current data model)
 - **Summary/dashboard sheet**: first sheet is non-tabular — plan is to rebuild as a proper web dashboard view. Waiting on contents.
 - **User access to dashboard**: do users reach it via the Render URL directly (public URL + JWT)? Yes — that's the plan.
+
+## Multi-table sheet convention (`##`)
+
+Client's Excel sheets contain multiple tables stacked vertically. Rather than forcing a restructure, a lightweight convention was agreed:
+
+- Pushing client to prefixes each table's title cell with `##` (e.g. `##Posiciones`, `##Monedas-PUT`)
+- The parser in `parse_tables_from_rows()` treats any row with exactly one non-None cell starting with `##` as a new table boundary
+- The next non-empty row after the title becomes the column headers
+- All subsequent rows until the next `##` row are data — blank rows within a table are ignored
+- If no `##` markers exist on a sheet, the whole sheet is parsed as one table (backward compatible)
+- Each parsed table is emitted as its own named entry in the push payload, so the frontend sidebar shows them as independent sheets
+
+**Edge cases handled:**
+- Blank rows mid-table: ignored (not a split boundary)
+- Whitespace around `##`: stripped (`"  ##  Monedas-PUT  "` → `"Monedas-PUT"`)
+- Single-value data rows (e.g. `Subtotal`): treated as data, not a title (no `##` prefix)
+- `##` title with no header row: logged as WARNING and skipped
+- Two `##` tables with no blank rows between them: works correctly
+- Table with headers but zero data rows: emitted with 0 rows (valid)
+
+**Test file:** `datos_fake.xlsx` covers all of the above edge cases. Run with:
+```bash
+sync/venv/bin/python sync/excel_push.py --file datos_fake.xlsx
+```
 
 ## Key decisions made
 - **Render over Mini PC**: no on-premises server. Client no longer needs to buy/maintain hardware. Work PC pushes to cloud.

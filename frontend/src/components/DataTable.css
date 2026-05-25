@@ -43,6 +43,8 @@
 
 .table-scroll {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
 }
 
 table {
@@ -52,6 +54,9 @@ table {
 }
 
 thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
     padding: 0.65rem 1rem;

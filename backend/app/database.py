@@ -58,6 +58,10 @@ def init_db():
             """)
             # Safe migrations: add columns to existing DBs without breaking new ones
             cur.execute("""
+                ALTER TABLE sheets
+                ADD COLUMN IF NOT EXISTS source_sheet VARCHAR(255);
+            """)
+            cur.execute("""
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE;
             """)

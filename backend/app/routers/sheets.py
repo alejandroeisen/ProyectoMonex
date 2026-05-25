@@ -11,19 +11,19 @@ def list_sheets(current_user: dict = Depends(get_current_user)):
         with conn.cursor() as cur:
             if current_user["role"] == "admin":
                 cur.execute("""
-                    SELECT id, name, display_name, columns, last_synced_at
+                    SELECT id, name, display_name, source_sheet, columns, last_synced_at
                     FROM sheets
                     WHERE is_active = true
-                    ORDER BY name
+                    ORDER BY source_sheet, name
                 """)
             else:
                 cur.execute("""
-                    SELECT s.id, s.name, s.display_name, s.columns, s.last_synced_at
+                    SELECT s.id, s.name, s.display_name, s.source_sheet, s.columns, s.last_synced_at
                     FROM sheets s
                     INNER JOIN user_sheets us ON s.id = us.sheet_id
                     WHERE s.is_active = true
                     AND us.user_id = %s
-                    ORDER BY s.name
+                    ORDER BY s.source_sheet, s.name
                 """, (current_user["user_id"],))
             sheets = cur.fetchall()
     return [dict(s) for s in sheets]
