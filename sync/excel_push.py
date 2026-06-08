@@ -423,7 +423,7 @@ def push_to_api(sheets: list[dict]) -> bool:
     headers = {"X-API-Key": SYNC_API_KEY, "Content-Type": "application/json"}
 
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
         if resp.status_code == 200:
             result = resp.json()
             logger.info(
