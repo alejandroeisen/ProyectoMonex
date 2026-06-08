@@ -8,6 +8,8 @@ Secured by API key (X-API-Key header). Not exposed in public API docs.
 import json
 import secrets
 import os
+
+from psycopg2.extras import execute_values
 from datetime import datetime
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -72,11 +74,13 @@ def receive_push(payload: PushPayload, x_api_key: str = Header(...)):
 
                 # Replace all rows for this sheet
                 cur.execute("DELETE FROM sheet_data WHERE sheet_id = %s", (sheet_id,))
-                for row in sheet.rows:
-                    cur.execute(
+                if sheet.rows:
+                    execute_values(
+                        cur,
                         "INSERT INTO sheet_data (sheet_id, row_data, synced_at) "
-                        "VALUES (%s, %s::jsonb, NOW())",
-                        (sheet_id, json.dumps(row))
+                        "VALUES %s",
+                        [(sheet_id, json.dumps(row), ) for row in sheet.rows],
+                        template="(%s, %s::jsonb, NOW())",
                     )
                 total_rows += len(sheet.rows)
 
