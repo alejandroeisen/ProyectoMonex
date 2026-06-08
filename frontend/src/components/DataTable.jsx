@@ -3,10 +3,12 @@ import './DataTable.css';
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+const NUMBER_FMT = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
+
 function formatCell(val) {
     if (val === null || val === undefined) return '';
+    if (typeof val === 'number') return NUMBER_FMT.format(val);
     if (typeof val === 'string') {
-        // Match ISO date: 2026-05-14 or 2026-05-14T00:00:00...
         const m = val.match(/^(\d{4})-(\d{2})-(\d{2})(T.*)?$/);
         if (m) return `${parseInt(m[3])}-${MONTHS[parseInt(m[2]) - 1]}`;
     }
