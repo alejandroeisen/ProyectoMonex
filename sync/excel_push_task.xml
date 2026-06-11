@@ -11,6 +11,7 @@
       it crashed and exhausted the RestartOnFailure retries below.
     -->
     <LogonTrigger>
+      <Delay>PT30S</Delay>
       <Repetition>
         <Interval>PT30M</Interval>
         <StopAtDurationEnd>false</StopAtDurationEnd>
@@ -38,7 +39,8 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>PLACEHOLDER_SYNC_DIR\start_push.bat</Command>
+      <Command>PLACEHOLDER_SYNC_DIR\venv\Scripts\pythonw.exe</Command>
+      <Arguments>PLACEHOLDER_SYNC_DIR\excel_push.py --loop</Arguments>
       <WorkingDirectory>PLACEHOLDER_SYNC_DIR</WorkingDirectory>
     </Exec>
   </Actions>

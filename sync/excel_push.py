@@ -56,11 +56,15 @@ logger.setLevel(logging.DEBUG)
 
 file_handler = RotatingFileHandler(log_path, maxBytes=2_000_000, backupCount=3)
 file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
-stream_handler.stream = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
 logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
+if sys.stdout is not None:
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(message)s"))
+    try:
+        stream_handler.stream = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+    except Exception:
+        pass
+    logger.addHandler(stream_handler)
 
 # ── Retry queue ───────────────────────────────────────────────────────────────
 
