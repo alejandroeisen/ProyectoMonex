@@ -464,7 +464,7 @@ def flush_retry_queue():
 
 # ── Main cycle ────────────────────────────────────────────────────────────────
 
-def read_with_timeout(file_path: str | None, timeout: int = 15, only_sheet: list[str] | None = None) -> list[dict] | None:
+def read_with_timeout(file_path: str | None, timeout: int = 120, only_sheet: list[str] | None = None) -> list[dict] | None:
     """Run the Excel read in a thread with a timeout. Returns None if Excel is busy."""
     fn = (lambda: read_via_openpyxl(file_path, only_sheet)) if file_path else (lambda: read_via_xlwings(only_sheet))
     with ThreadPoolExecutor(max_workers=1) as executor:

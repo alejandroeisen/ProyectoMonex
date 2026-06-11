@@ -9,7 +9,13 @@ Internal financial dashboard built as a freelance project. Replaces an Excel-bas
 - Always consider security concerns when building or coding
 
 ## Current status
-Working dev setup. Login, sheet selector, data tables with search/sort, and frontend auto-refresh (every 30s) are functional. Push script reads live Excel via xlwings and POSTs to FastAPI, which writes to PostgreSQL. Tested end-to-end on Windows. Admin panel (user management, logs, permissions) built and tested.
+**Fully deployed and working end-to-end in production.**
+
+- Backend on Render Web Service (`https://monex-webservice.onrender.com`)
+- Frontend on Render Static Site
+- Database on Supabase PostgreSQL (free tier — see Supabase notes below)
+- Push script running on Work PC via xlwings, posting every 5s (`PUSH_INTERVAL_SECONDS=5`)
+- Production test: 24 sheets, 678 rows, ~11 seconds per push cycle
 
 **Active branch**: `feature/multi-table-parser` — multi-table Excel sheet support via `##` convention.
 
@@ -24,7 +30,7 @@ Working dev setup. Login, sheet selector, data tables with search/sort, and fron
 - No file sync needed (no Syncthing, no network shares, no Mini PC)
 - Data reflects the current in-memory state of Excel, not the last save
 - Works whether the Work PC is at the office or at home — just needs internet
-- Latency is whatever `PUSH_INTERVAL_SECONDS` is set to (default 60s)
+- Latency is whatever `PUSH_INTERVAL_SECONDS` is set to (currently 5s)
 
 ## Architecture
 ```
@@ -36,7 +42,7 @@ excel_push.py (xlwings reads live memory)
         | (internet)
         ↓
 [Render — cloud hosted]
-POST /internal/push → FastAPI → PostgreSQL
+POST /internal/push → FastAPI → PostgreSQL (Supabase)
         |
 FastAPI serves authenticated endpoints
         |
@@ -74,6 +80,7 @@ ProyectoIlanErgas/
 │   ├── excel_push.log        ← rotating log written by excel_push.py
 │   └── .env.example
 ├── datos_fake.xlsx            ← static dev/test data (used with --file mode)
+├── Informe_Ejemplo.xlsx       ← real client file (45MB, not committed) — used for testing
 └── frontend/
     └── src/
         ├── App.jsx            ← auth state, routes between Login and Dashboard
@@ -85,34 +92,6 @@ ProyectoIlanErgas/
         │   └── LogsPanel.jsx/css   ← DB status, push log tail, sheet counts (admin only)
         └── components/
             └── DataTable.jsx/css   ← table with search filter + column sort
-```
-
-## Local dev setup (Windows, first time)
-```bash
-# 1. PostgreSQL — install via winget, then:
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE USER intelimed WITH PASSWORD 'intelimed123';"
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE DATABASE intelimed_db OWNER intelimed;"
-
-# 2. Backend (terminal 1)
-cd backend
-python -m venv venv
-venv\Scripts\pip install -r requirements.txt
-copy .env.example .env        # fill in values (SYNC_API_KEY, SECRET_KEY, etc.)
-venv\Scripts\python init_db.py
-venv\Scripts\uvicorn app.main:app --reload
-
-# 3. Push script — dev mode (terminal 2)
-cd sync
-pip install requests python-dotenv openpyxl xlwings
-copy .env.example .env        # set MINIPC_API_URL=http://localhost:8000 + SYNC_API_KEY
-python excel_push.py --file ..\datos_fake.xlsx --loop   # test with static file
-python excel_push.py --loop                             # live Excel via xlwings
-
-# 4. Frontend (terminal 3)
-cd frontend
-npm install
-npm run dev
-# → http://localhost:5173  (login: admin / admin123)
 ```
 
 ## Local dev setup (Linux, for backend/frontend work)
@@ -132,22 +111,57 @@ venv/bin/uvicorn app.main:app --reload
 # 3. Populate DB for testing (Linux — no xlwings)
 cd sync
 python3 -m venv venv
-venv/bin/pip install openpyxl psycopg2-binary python-dotenv
-# Push fake data directly to local backend:
-# python excel_push.py --file ../datos_fake.xlsx  (if xlwings mode is skipped)
+venv/bin/pip install openpyxl psycopg2-binary python-dotenv requests
+venv/bin/python excel_push.py --file ../datos_fake.xlsx  # push fake data to local backend
 
 # 4. Frontend
 cd frontend
 npm install
 npm run dev
+# → http://localhost:5173  (login: admin / admin123)
+```
+
+## Local dev setup (Windows, first time)
+```bash
+# 1. PostgreSQL — install via winget, then:
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE USER intelimed WITH PASSWORD 'intelimed123';"
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE DATABASE intelimed_db OWNER intelimed;"
+
+# 2. Backend (terminal 1)
+cd backend
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt
+copy .env.example .env        # fill in values (SYNC_API_KEY, SECRET_KEY, etc.)
+venv\Scripts\python init_db.py
+venv\Scripts\uvicorn app.main:app --reload
+
+# 3. Push script (terminal 2)
+cd sync
+pip install requests python-dotenv openpyxl xlwings
+copy .env.example .env        # set MINIPC_API_URL=http://localhost:8000 + SYNC_API_KEY
+python excel_push.py --file ..\datos_fake.xlsx --loop   # test with static file
+python excel_push.py --loop                             # live Excel via xlwings
+
+# 4. Frontend (terminal 3)
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173  (login: admin / admin123)
 ```
 
 ## xlwings notes (Windows)
 - Requires `pip install xlwings` and running `python path/to/pywin32_postinstall.py -install` once after fresh install
 - Excel must be open before running the push script
-- If Excel is in edit mode or showing a dialog, the read times out after 15s and skips the cycle (logged as WARNING)
+- If Excel is in edit mode or showing a dialog, the read times out after 120s and skips the cycle (logged as WARNING)
 - `EXCEL_WORKBOOK_NAME` in `.env` filters to a specific workbook by partial name match; leave blank to use the first open workbook
 - win32com was tried first but failed: `GetActiveObject` couldn't find Excel, and the file was locked when opened via path. xlwings `apps.active` solved both issues.
+- `Informe_Ejemplo.xlsx` is ~45MB (LibreOffice save bloats it). Read timeout set to 120s for this reason.
+
+## Supabase notes
+- Free tier **auto-pauses after 1 week of inactivity**. Regular pushes from Work PC reset the timer.
+- If paused: restore via Supabase dashboard → project → "Restore project".
+- Use the **Session Pooler** connection string (not Direct). Percent-encode special chars in the password.
+- Set `DATABASE_URL` in Render environment variables with **only the URL as the value** (not `DATABASE_URL=...`).
 
 ## What's done
 - ✅ Push architecture: xlwings on Work PC → `/internal/push` → PostgreSQL
@@ -158,34 +172,80 @@ npm run dev
 - ✅ Stale data banner: when auto-refresh fails, table stays visible with yellow warning
 - ✅ Sidebar retries sheet list every 10s if initial load failed
 - ✅ Full test suite: 31 tests across auth, sheets, admin endpoints
-- ✅ Render deploy config: `VITE_API_URL`, `ALLOWED_ORIGINS`, `.env.production`
+- ✅ Deployed to Render (backend Web Service + frontend Static Site) + Supabase DB
 - ✅ Multi-table parser: `##TableName` convention splits one Excel sheet into N named tables, each surfaced as a separate sidebar entry. Parser is in `sync/excel_push.py:parse_tables_from_rows()`.
+- ✅ Batch DB inserts: `psycopg2.extras.execute_values` — single INSERT per sheet instead of per-row loop. Fixed push timeouts.
+- ✅ LATAM number formatting: `Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 })` — dot thousands, comma decimal. In `DataTable.jsx`.
+- ✅ Cell formatting: bold, background color, font color from Excel carried through to frontend via `__fmt__` field in row data.
+- ✅ Source sheet tracking: `source_sheet` column in DB, sidebar groups tables by source sheet.
+
+## Known bugs (not yet fixed)
+
+### CRITICAL: Table name collision across sheets
+When two different source sheets both have a `##TableName` with the same name (e.g., both `cartera` and `Resumen Global` have `##Resumen`), the DB upsert uses `ON CONFLICT (name)` so whichever pushes last wins — the other is silently overwritten.
+
+**Fix required:**
+1. DB migration: drop unique constraint on `name`, add unique constraint on `(source_sheet, name)`
+2. `backend/app/routers/internal.py` line 67: change `ON CONFLICT (name)` to `ON CONFLICT (source_sheet, name)`
+3. Run migration SQL on Supabase:
+```sql
+ALTER TABLE sheets DROP CONSTRAINT sheets_name_key;
+ALTER TABLE sheets ADD CONSTRAINT sheets_source_sheet_name_key UNIQUE (source_sheet, name);
+```
+
+### `_header_columns` skips tables that don't start in column A
+Tables where the `##Title` cell is in column B or later have a `None` in column A, which causes `_header_columns` to return `[]` immediately (the right-wall rule fires before any header is read).
+
+**Current code** (`sync/excel_push.py`):
+```python
+def _header_columns(row: list) -> list[str]:
+    headers = []
+    for v in row:
+        if v is None:
+            break  # stops at first None — breaks if table doesn't start in col A
+        if isinstance(v, str) and v.strip():
+            headers.append(v.strip())
+    return headers
+```
+
+**Fix** (skip leading Nones, then stop at first None after headers start):
+```python
+def _header_columns(row: list) -> list[str]:
+    headers = []
+    started = False
+    for v in row:
+        if v is None:
+            if started:
+                break  # right-wall: first None after headers = end of table
+            continue   # skip leading Nones before table begins
+        if isinstance(v, str) and v.strip():
+            headers.append(v.strip())
+            started = True
+    return headers
+```
+
+### `etf` sheet: "CARTERA DELTA EQUITY" has no header row
+Logged as WARNING every push cycle. Not yet addressed — waiting to confirm with client what the expected layout is.
 
 ## What's next
 
-### Core / unblocked
-- **Frontend: render multiple tables per sheet** — parser is done; frontend still renders one table per sidebar entry. Need to verify sidebar entry = table name (not sheet name) end-to-end with backend.
+### Unblocked
+- **Fix table name collision** (see Known bugs above) — CRITICAL, must do before going to more users
+- **Fix `_header_columns` leading-None bug** — affects `Resumen Global` sheet and any other table not starting in column A
 - **localStorage cache for last-seen sheet data** — so page loads while backend is down still show data
   - ~500KB total for real data (12 sheets, 1500 rows, 10 cols) — fits localStorage fine
-  - Write only the active sheet per refresh (~38KB) — negligible
 - **Dashboard/summary view** in the frontend (waiting on contents of client's summary sheet)
-- **Logs tab update**: currently tails `sync.log` (old pull script). Should tail `excel_push.log` instead.
+- **Logs tab update**: LogsPanel currently tails `sync.log` (old pull script path). Should tail `excel_push.log` instead.
+- **Push script auto-start**: Task Scheduler on Work PC (auto-start on login, restart on failure)
 
-### Deployment (Render)
-- Backend: deploy as Render Web Service (Python), set env vars (DATABASE_URL, SECRET_KEY, SYNC_API_KEY, ALLOWED_ORIGINS)
-- Frontend: deploy as Render Static Site, set `VITE_API_URL` build env var
-- Database: Supabase PostgreSQL (free tier, permanent — migrated from Render). Use Session Pooler connection string; percent-encode special chars in password.
-- Push script: Task Scheduler on Work PC (auto-start on login, restart on failure)
-
-## Pending decisions / blockers
-- **Summary/dashboard sheet**: first sheet is non-tabular — plan is to rebuild as a proper web dashboard view. Waiting on contents.
-- **User access to dashboard**: do users reach it via the Render URL directly (public URL + JWT)? Yes — that's the plan.
+### Blocked
+- **Summary/dashboard sheet**: first sheet is non-tabular — plan is to rebuild as a proper web dashboard view. Waiting on client to share contents.
 
 ## Multi-table sheet convention (`##`)
 
 Client's Excel sheets contain multiple tables stacked vertically. Rather than forcing a restructure, a lightweight convention was agreed:
 
-- Pushing client to prefixes each table's title cell with `##` (e.g. `##Posiciones`, `##Monedas-PUT`)
+- Client prefixes each table's title cell with `##` (e.g. `##Posiciones`, `##Monedas-PUT`)
 - The parser in `parse_tables_from_rows()` treats any row with exactly one non-None cell starting with `##` as a new table boundary
 - The next non-empty row after the title becomes the column headers
 - All subsequent rows until the next `##` row are data — blank rows within a table are ignored
@@ -213,4 +273,7 @@ sync/venv/bin/python sync/excel_push.py --file datos_fake.xlsx
 - **JSONB storage**: each row stored as JSON blob — flexible schema across sheets with different headers.
 - **No ORM**: raw psycopg2 with RealDictCursor — simple enough that SQLAlchemy would be overhead.
 - **bcrypt directly**: passlib dropped because it breaks with newer bcrypt versions.
-- **15s read timeout**: if Excel is busy (edit mode, dialog open), the cycle is skipped rather than blocking. Logged as WARNING.
+- **120s read timeout**: Excel file is 45MB; original 15s timeout caused skipped cycles. Bumped to 120s.
+- **30s HTTP push timeout**: original 10s was too tight for large payloads over Render cold starts. Bumped to 30s.
+- **Batch inserts**: switched from per-row INSERT to `execute_values` batch — eliminated push timeouts caused by hundreds of Supabase round-trips per cycle.
+- **openpyxl for `--file` mode**: reads cached formula values from `.xlsx` (not live). Only xlwings gets live RTD values. Fine for testing with static files.
