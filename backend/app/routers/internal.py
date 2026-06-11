@@ -59,17 +59,18 @@ def receive_push(payload: PushPayload, x_api_key: str = Header(...)):
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            for sheet in payload.sheets:
+            for position, sheet in enumerate(payload.sheets):
                 # Upsert sheet metadata
                 cur.execute("""
-                    INSERT INTO sheets (name, display_name, source_sheet, columns, last_synced_at)
-                    VALUES (%s, %s, %s, %s::jsonb, NOW())
+                    INSERT INTO sheets (name, display_name, source_sheet, columns, last_synced_at, position)
+                    VALUES (%s, %s, %s, %s::jsonb, NOW(), %s)
                     ON CONFLICT (name) DO UPDATE SET
                         source_sheet   = EXCLUDED.source_sheet,
                         columns        = EXCLUDED.columns,
-                        last_synced_at = NOW()
+                        last_synced_at = NOW(),
+                        position       = EXCLUDED.position
                     RETURNING id
-                """, (sheet.name, sheet.name, sheet.source_sheet, json.dumps(sheet.columns)))
+                """, (sheet.name, sheet.name, sheet.source_sheet, json.dumps(sheet.columns), position))
                 sheet_id = cur.fetchone()["id"]
 
                 # Replace all rows for this sheet

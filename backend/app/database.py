@@ -73,3 +73,7 @@ def init_db():
                 ALTER TABLE users
                 ALTER COLUMN password_hash DROP NOT NULL;
             """)
+            cur.execute("""
+                ALTER TABLE sheets
+                ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+            """)

@@ -14,7 +14,7 @@ def list_sheets(current_user: dict = Depends(get_current_user)):
                     SELECT id, name, display_name, source_sheet, columns, last_synced_at
                     FROM sheets
                     WHERE is_active = true
-                    ORDER BY source_sheet, name
+                    ORDER BY position, name
                 """)
             else:
                 cur.execute("""
@@ -23,7 +23,7 @@ def list_sheets(current_user: dict = Depends(get_current_user)):
                     INNER JOIN user_sheets us ON s.id = us.sheet_id
                     WHERE s.is_active = true
                     AND us.user_id = %s
-                    ORDER BY s.source_sheet, s.name
+                    ORDER BY s.position, s.name
                 """, (current_user["user_id"],))
             sheets = cur.fetchall()
     return [dict(s) for s in sheets]
