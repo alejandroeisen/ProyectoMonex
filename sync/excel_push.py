@@ -46,6 +46,7 @@ EXCEL_WORKBOOK_NAME  = os.getenv("EXCEL_WORKBOOK_NAME", "")   # partial match, o
 PUSH_INTERVAL        = int(os.getenv("PUSH_INTERVAL_SECONDS", "15"))
 EXCLUDED_SHEETS      = {s.strip() for s in os.getenv("EXCLUDED_SHEETS", "").split(",") if s.strip()}
 MAX_RETRY_QUEUE      = 5   # max failed payloads to hold in memory
+FORMAT_REFRESH_CYCLES = int(os.getenv("FORMAT_REFRESH_CYCLES", "20"))  # re-read formatting every N cycles
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,10 @@ logger.addHandler(stream_handler)
 # ── Retry queue ───────────────────────────────────────────────────────────────
 
 retry_queue: deque = deque(maxlen=MAX_RETRY_QUEUE)
+
+# Formatting cache — re-read every FORMAT_REFRESH_CYCLES cycles (formatting rarely changes)
+_fmt_cache: dict[str, list[list] | None] = {}
+_fmt_cycle_count: dict[str, int] = {}
 
 
 # ── Excel reading ─────────────────────────────────────────────────────────────
@@ -179,6 +184,21 @@ def _fmt_xlwings_cell(cell) -> dict | None:
     return fmt if fmt else None
 
 
+_XL_PATTERN_NONE = -4142  # xlPatternNone (no fill)
+
+
+def _col_is_plain(col_api) -> bool:
+    """3 COM calls to check if an entire column has no formatting."""
+    try:
+        return (
+            col_api.Font.Bold is False
+            and col_api.Interior.Pattern == _XL_PATTERN_NONE
+            and col_api.Font.Color == 0
+        )
+    except Exception:
+        return False
+
+
 def _read_fmt_xlwings(sheet) -> list[list] | None:
     try:
         used = sheet.used_range
@@ -186,16 +206,52 @@ def _read_fmt_xlwings(sheet) -> list[list] | None:
         first_col = used.column
         nrows = used.rows.count
         ncols = used.columns.count
-        fmt_rows = []
-        for r in range(first_row, first_row + nrows):
-            row_fmts = []
-            for c in range(first_col, first_col + ncols):
-                row_fmts.append(_fmt_xlwings_cell(sheet.cells(r, c)))
-            fmt_rows.append(row_fmts)
-        return fmt_rows
+
+        # Fast path: entire used range has no formatting — skip entirely (3 COM calls)
+        try:
+            api = used.api
+            if (api.Font.Bold is False
+                    and api.Interior.Pattern == _XL_PATTERN_NONE
+                    and api.Font.Color == 0):
+                return None
+        except Exception:
+            pass
+
+        fmt_rows = [[None] * ncols for _ in range(nrows)]
+        any_fmt = False
+
+        for c_idx in range(ncols):
+            c = first_col + c_idx
+            col_api = sheet.range(
+                (first_row, c), (first_row + nrows - 1, c)
+            ).api
+
+            if _col_is_plain(col_api):
+                continue  # whole column is plain — skip per-cell reads
+
+            # Column has some formatting — read cell by cell
+            for r_idx in range(nrows):
+                f = _fmt_xlwings_cell(sheet.cells(first_row + r_idx, c))
+                if f:
+                    fmt_rows[r_idx][c_idx] = f
+                    any_fmt = True
+
+        return fmt_rows if any_fmt else None
     except Exception as e:
         logger.debug(f"Could not read cell formatting: {e}")
         return None
+
+
+def _read_fmt_xlwings_cached(sheet, sheet_name: str) -> list[list] | None:
+    """Return cached formatting, refreshing every FORMAT_REFRESH_CYCLES cycles."""
+    age = _fmt_cycle_count.get(sheet_name, FORMAT_REFRESH_CYCLES)  # force read on first call
+    if age >= FORMAT_REFRESH_CYCLES:
+        _fmt_cache[sheet_name] = _read_fmt_xlwings(sheet)
+        _fmt_cycle_count[sheet_name] = 0
+        logger.debug(f"  '{sheet_name}': formatting refreshed (cache)")
+    else:
+        _fmt_cycle_count[sheet_name] = age + 1
+    return _fmt_cache.get(sheet_name)
 
 
 def parse_tables_from_rows(raw_rows: list[list], sheet_name: str, raw_fmts: list[list] | None = None) -> list[dict]:
@@ -353,7 +409,7 @@ def read_via_xlwings(only_sheet: list[str] | None = None) -> list[dict] | None:
             elif raw and not isinstance(raw[0], list):
                 raw = [raw]
 
-            fmt_rows = _read_fmt_xlwings(sheet)
+            fmt_rows = _read_fmt_xlwings_cached(sheet, sheet_name)
             logger.debug(f"Sheet '{sheet_name}':")
             tables = parse_tables_from_rows(raw, sheet_name, fmt_rows)
             for t in tables:

@@ -102,6 +102,21 @@
     font-weight: 500;
 }
 
+.sidebar-group-wrapper {
+    cursor: grab;
+}
+
+.sidebar-group-wrapper:active {
+    cursor: grabbing;
+}
+
+.sidebar-drag-handle {
+    font-size: 0.75rem;
+    color: #d1d5db;
+    margin-right: 0.15rem;
+    cursor: grab;
+}
+
 .sidebar-group {
     display: flex;
     align-items: center;

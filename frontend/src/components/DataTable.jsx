@@ -15,12 +15,26 @@ function formatCell(val) {
     return String(val);
 }
 
+function isNumericColumn(col, rows) {
+    for (const row of rows) {
+        const v = row[col];
+        if (v !== null && v !== undefined) return typeof v === 'number';
+    }
+    return false;
+}
+
 export default function DataTable({ sheet, rows }) {
     const [filter, setFilter] = useState('');
     const [sortKey, setSortKey] = useState(null);
     const [sortDir, setSortDir] = useState('asc');
 
     const columns = sheet.columns || [];
+
+    const numericCols = useMemo(() => {
+        const s = new Set();
+        columns.forEach(col => { if (isNumericColumn(col, rows)) s.add(col); });
+        return s;
+    }, [columns, rows]);
 
     const filteredRows = useMemo(() => {
         const term = filter.toLowerCase();
@@ -87,7 +101,7 @@ export default function DataTable({ sheet, rows }) {
                         <thead>
                             <tr>
                                 {columns.map(col => (
-                                    <th key={col} onClick={() => toggleSort(col)}>
+                                    <th key={col} onClick={() => toggleSort(col)} style={numericCols.has(col) ? { textAlign: 'right' } : undefined}>
                                         {col} {sortIndicator(col)}
                                     </th>
                                 ))}
@@ -105,12 +119,15 @@ export default function DataTable({ sheet, rows }) {
                                     <tr key={i}>
                                         {columns.map(col => {
                                             const fmt = row['__fmt__']?.[col];
-                                            const style = fmt ? {
-                                                fontWeight: fmt.bold ? 'bold' : undefined,
-                                                backgroundColor: fmt.bg,
-                                                color: fmt.color,
-                                            } : undefined;
-                                            return <td key={col} style={style}>{formatCell(row[col])}</td>;
+                                            const style = {
+                                                ...(numericCols.has(col) ? { textAlign: 'right' } : {}),
+                                                ...(fmt ? {
+                                                    fontWeight: fmt.bold ? 'bold' : undefined,
+                                                    backgroundColor: fmt.bg,
+                                                    color: fmt.color,
+                                                } : {}),
+                                            };
+                                            return <td key={col} style={Object.keys(style).length ? style : undefined}>{formatCell(row[col])}</td>;
                                         })}
                                     </tr>
                                 ))

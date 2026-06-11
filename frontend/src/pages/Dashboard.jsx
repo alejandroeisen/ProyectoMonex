@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSheets, getSheetData } from '../api';
 import DataTable from '../components/DataTable';
 import AdminPanel from './AdminPanel';
@@ -7,8 +7,10 @@ import './Dashboard.css';
 
 export default function Dashboard({ user, token, onLogout }) {
     const [sheets, setSheets] = useState([]);
+    const [groupOrder, setGroupOrder] = useState([]); // ordered list of source_sheet group names
     const [activeSheet, setActiveSheet] = useState(null);
     const [expandedGroups, setExpandedGroups] = useState({});
+    const dragGroup = useRef(null);
     const [sheetData, setSheetData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -20,8 +22,15 @@ export default function Dashboard({ user, token, onLogout }) {
             .then(data => {
                 setSheets(data);
                 const groups = {};
-                data.forEach(s => { if (s.source_sheet) groups[s.source_sheet] = true; });
+                const order = [];
+                data.forEach(s => {
+                    if (s.source_sheet && !groups[s.source_sheet]) {
+                        groups[s.source_sheet] = true;
+                        order.push(s.source_sheet);
+                    }
+                });
                 setExpandedGroups(groups);
+                setGroupOrder(order);
                 if (data.length > 0) selectSheet(data[0]);
             })
             .catch(err => setError(err.message));
@@ -103,18 +112,48 @@ export default function Dashboard({ user, token, onLogout }) {
                                 ungrouped.push(s);
                             }
                         });
+
+                        function onDragStart(e, group) {
+                            dragGroup.current = group;
+                            e.dataTransfer.effectAllowed = 'move';
+                        }
+                        function onDragOver(e, group) {
+                            e.preventDefault();
+                            if (!dragGroup.current || dragGroup.current === group) return;
+                            setGroupOrder(prev => {
+                                const next = [...prev];
+                                const from = next.indexOf(dragGroup.current);
+                                const to = next.indexOf(group);
+                                if (from === -1 || to === -1) return prev;
+                                next.splice(from, 1);
+                                next.splice(to, 0, dragGroup.current);
+                                return next;
+                            });
+                        }
+                        function onDragEnd() { dragGroup.current = null; }
+
+                        const orderedGroups = groupOrder.filter(g => grouped[g]);
+
                         return (
                             <>
-                                {Object.entries(grouped).map(([group, children]) => (
-                                    <div key={group}>
+                                {orderedGroups.map(group => (
+                                    <div
+                                        key={group}
+                                        draggable
+                                        onDragStart={e => onDragStart(e, group)}
+                                        onDragOver={e => onDragOver(e, group)}
+                                        onDragEnd={onDragEnd}
+                                        className="sidebar-group-wrapper"
+                                    >
                                         <button
                                             className="sidebar-group"
                                             onClick={() => setExpandedGroups(g => ({ ...g, [group]: !g[group] }))}
                                         >
+                                            <span className="sidebar-drag-handle">⠿</span>
                                             <span className="sidebar-group-arrow">{expandedGroups[group] ? '▾' : '▸'}</span>
                                             {group}
                                         </button>
-                                        {expandedGroups[group] && children.map(sheet => (
+                                        {expandedGroups[group] && grouped[group].map(sheet => (
                                             <button
                                                 key={sheet.id}
                                                 className={`sidebar-item sidebar-subitem ${view === 'data' && activeSheet?.id === sheet.id ? 'active' : ''}`}
