@@ -178,6 +178,10 @@ npm run dev
 - ✅ LATAM number formatting: `Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 })` — dot thousands, comma decimal. In `DataTable.jsx`.
 - ✅ Cell formatting: bold, background color, font color from Excel carried through to frontend via `__fmt__` field in row data.
 - ✅ Source sheet tracking: `source_sheet` column in DB, sidebar groups tables by source sheet.
+- ✅ Sheet order preserved: `position` column in DB, sidebar respects Excel sheet order + supports drag-reorder.
+- ✅ Formatting read cache: xlwings formatting re-read every N cycles (`FORMAT_REFRESH_CYCLES`, default 20) instead of every push — perf improvement.
+- ✅ Number alignment: numeric cells right-aligned in the frontend table.
+- ✅ Task Scheduler auto-start: `sync/excel_push_task.xml` — starts 30s after login via `pythonw.exe` (no console), repeats every 30min as crash-guard, restarts up to 10× on failure. `PLACEHOLDER_SYNC_DIR` replaced by installer. Fixed `pythonw` startup crash.
 
 ## Known bugs (not yet fixed)
 
