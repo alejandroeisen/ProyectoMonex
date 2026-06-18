@@ -217,7 +217,7 @@ Open Command Prompt and run:
 ```cmd
 cd C:\Monex\sync
 python -m venv venv
-venv\Scripts\pip install requests python-dotenv xlwings
+venv\Scripts\pip install requests python-dotenv xlwings openpyxl
 ```
 
 ### 7.4 — Run xlwings post-install (required once for COM automation)
