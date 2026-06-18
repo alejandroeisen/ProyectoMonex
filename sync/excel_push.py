@@ -40,13 +40,14 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-MINIPC_API_URL       = os.getenv("MINIPC_API_URL", "http://localhost:8000")
-SYNC_API_KEY         = os.getenv("SYNC_API_KEY", "")
-EXCEL_WORKBOOK_NAME  = os.getenv("EXCEL_WORKBOOK_NAME", "")   # partial match, optional
-PUSH_INTERVAL        = int(os.getenv("PUSH_INTERVAL_SECONDS", "15"))
-EXCLUDED_SHEETS      = {s.strip() for s in os.getenv("EXCLUDED_SHEETS", "").split(",") if s.strip()}
-MAX_RETRY_QUEUE      = 5   # max failed payloads to hold in memory
-FORMAT_REFRESH_CYCLES = int(os.getenv("FORMAT_REFRESH_CYCLES", "20"))  # re-read formatting every N cycles
+MINIPC_API_URL        = os.getenv("MINIPC_API_URL", "http://localhost:8000")
+SYNC_API_KEY          = os.getenv("SYNC_API_KEY", "")
+EXCEL_WORKBOOK_NAME   = os.getenv("EXCEL_WORKBOOK_NAME", "")   # partial match, optional
+EXCEL_WORKBOOK_PATH   = os.getenv("EXCEL_WORKBOOK_PATH", "")   # path on disk for formatting reads
+PUSH_INTERVAL         = int(os.getenv("PUSH_INTERVAL_SECONDS", "15"))
+EXCLUDED_SHEETS       = {s.strip() for s in os.getenv("EXCLUDED_SHEETS", "").split(",") if s.strip()}
+MAX_RETRY_QUEUE       = 5   # max failed payloads to hold in memory
+FORMAT_REFRESH_SECONDS = int(os.getenv("FORMAT_REFRESH_SECONDS", "3600"))  # re-read disk formatting every N seconds
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -70,9 +71,9 @@ if sys.stdout is not None:
 
 retry_queue: deque = deque(maxlen=MAX_RETRY_QUEUE)
 
-# Formatting cache — re-read every FORMAT_REFRESH_CYCLES cycles (formatting rarely changes)
+# Formatting cache — loaded from disk via openpyxl, refreshed every FORMAT_REFRESH_SECONDS
 _fmt_cache: dict[str, list[list] | None] = {}
-_fmt_cycle_count: dict[str, int] = {}
+_fmt_last_loaded: float = 0.0
 
 
 # ── Excel reading ─────────────────────────────────────────────────────────────
@@ -159,102 +160,52 @@ def _fmt_openpyxl(cell) -> dict | None:
     return fmt if fmt else None
 
 
-def _colorref_to_hex(colorref: int) -> str:
-    r = colorref & 0xFF
-    g = (colorref >> 8) & 0xFF
-    b = (colorref >> 16) & 0xFF
-    return f"#{r:02X}{g:02X}{b:02X}"
+def _load_fmt_from_disk() -> bool:
+    """
+    Read formatting for all sheets from the .xlsx file on disk via openpyxl.
+    No COM calls — Excel is completely unaffected.
+    Returns True if successful.
+    """
+    global _fmt_last_loaded
 
-
-def _fmt_xlwings_cell(cell) -> dict | None:
-    fmt = {}
-    try:
-        if cell.api.Font.Bold:
-            fmt['bold'] = True
-    except Exception:
-        pass
-    try:
-        bg = cell.color  # (R, G, B) tuple or None = no fill
-        if bg is not None:
-            fmt['bg'] = f"#{bg[0]:02X}{bg[1]:02X}{bg[2]:02X}"
-    except Exception:
-        pass
-    try:
-        fc = cell.api.Font.Color  # COLORREF int
-        if fc != 0:  # 0 = black (default)
-            fmt['color'] = _colorref_to_hex(fc)
-    except Exception:
-        pass
-    return fmt if fmt else None
-
-
-_XL_PATTERN_NONE = -4142  # xlPatternNone (no fill)
-
-
-def _col_is_plain(col_api) -> bool:
-    """3 COM calls to check if an entire column has no formatting."""
-    try:
-        return (
-            col_api.Font.Bold is False
-            and col_api.Interior.Pattern == _XL_PATTERN_NONE
-            and col_api.Font.Color == 0
-        )
-    except Exception:
+    if not EXCEL_WORKBOOK_PATH:
+        logger.debug("EXCEL_WORKBOOK_PATH not set — formatting disabled.")
         return False
 
-
-def _read_fmt_xlwings(sheet) -> list[list] | None:
     try:
-        used = sheet.used_range
-        first_row = used.row
-        first_col = used.column
-        nrows = used.rows.count
-        ncols = used.columns.count
-
-        # Fast path: entire used range has no formatting — skip entirely (3 COM calls)
-        try:
-            api = used.api
-            if (api.Font.Bold is False
-                    and api.Interior.Pattern == _XL_PATTERN_NONE
-                    and api.Font.Color == 0):
-                return None
-        except Exception:
-            pass
-
-        fmt_rows = [[None] * ncols for _ in range(nrows)]
-        any_fmt = False
-
-        for c_idx in range(ncols):
-            c = first_col + c_idx
-            col_api = sheet.range(
-                (first_row, c), (first_row + nrows - 1, c)
-            ).api
-
-            if _col_is_plain(col_api):
-                continue  # whole column is plain — skip per-cell reads
-
-            # Column has some formatting — read cell by cell
-            for r_idx in range(nrows):
-                f = _fmt_xlwings_cell(sheet.cells(first_row + r_idx, c))
-                if f:
-                    fmt_rows[r_idx][c_idx] = f
-                    any_fmt = True
-
-        return fmt_rows if any_fmt else None
+        import openpyxl
+        wb = openpyxl.load_workbook(EXCEL_WORKBOOK_PATH, data_only=True, read_only=True)
+    except FileNotFoundError:
+        logger.warning(f"Formatting file not found: {EXCEL_WORKBOOK_PATH}")
+        return False
     except Exception as e:
-        logger.debug(f"Could not read cell formatting: {e}")
-        return None
+        logger.warning(f"Could not open file for formatting: {e}")
+        return False
+
+    loaded = 0
+    for sheet_name in wb.sheetnames:
+        if sheet_name in EXCLUDED_SHEETS:
+            continue
+        try:
+            ws = wb[sheet_name]
+            rows = list(ws.iter_rows())
+            fmt_rows = [[_fmt_openpyxl(cell) for cell in row] for row in rows]
+            _fmt_cache[sheet_name] = fmt_rows if any(any(c for c in r) for r in fmt_rows) else None
+            loaded += 1
+        except Exception as e:
+            logger.debug(f"  Could not read formatting for '{sheet_name}': {e}")
+            _fmt_cache[sheet_name] = None
+
+    wb.close()
+    _fmt_last_loaded = time.monotonic()
+    logger.info(f"Formatting loaded from disk ({loaded} sheets) — next refresh in {FORMAT_REFRESH_SECONDS}s")
+    return True
 
 
-def _read_fmt_xlwings_cached(sheet, sheet_name: str) -> list[list] | None:
-    """Return cached formatting, refreshing every FORMAT_REFRESH_CYCLES cycles."""
-    age = _fmt_cycle_count.get(sheet_name, FORMAT_REFRESH_CYCLES)  # force read on first call
-    if age >= FORMAT_REFRESH_CYCLES:
-        _fmt_cache[sheet_name] = _read_fmt_xlwings(sheet)
-        _fmt_cycle_count[sheet_name] = 0
-        logger.debug(f"  '{sheet_name}': formatting refreshed (cache)")
-    else:
-        _fmt_cycle_count[sheet_name] = age + 1
+def _fmt_for_sheet(sheet_name: str) -> list[list] | None:
+    """Return cached disk-based formatting for a sheet, refreshing if stale."""
+    if time.monotonic() - _fmt_last_loaded >= FORMAT_REFRESH_SECONDS:
+        _load_fmt_from_disk()
     return _fmt_cache.get(sheet_name)
 
 
@@ -413,7 +364,7 @@ def read_via_xlwings(only_sheet: list[str] | None = None) -> list[dict] | None:
             elif raw and not isinstance(raw[0], list):
                 raw = [raw]
 
-            fmt_rows = _read_fmt_xlwings_cached(sheet, sheet_name)
+            fmt_rows = _fmt_for_sheet(sheet_name)
             logger.debug(f"Sheet '{sheet_name}':")
             tables = parse_tables_from_rows(raw, sheet_name, fmt_rows)
             for t in tables:
@@ -568,6 +519,8 @@ def run_cycle(file_path: str | None, only_sheet: list[str] | None = None):
 def run_loop(file_path: str | None, interval: int, only_sheet: list[str] | None = None):
     mode = f"file: {file_path}" if file_path else "xlwings (live Excel)"
     logger.info(f"Starting push loop — interval: {interval}s — mode: {mode}")
+    if not file_path:
+        _load_fmt_from_disk()
     while True:
         run_cycle(file_path, only_sheet=only_sheet)
         logger.info(f"Sleeping {interval}s...\n")

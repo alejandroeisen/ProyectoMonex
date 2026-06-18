@@ -177,10 +177,13 @@ Without this last step, Google rejects logins with an `origin_mismatch` error.
   MINIPC_API_URL=https://[your-backend].onrender.com
   SYNC_API_KEY=[second secret from Step 0 — must match Render exactly]
   EXCEL_WORKBOOK_NAME=[partial name of the client's Excel file, e.g. "Informe"]
+  EXCEL_WORKBOOK_PATH=C:\Users\[user]\Documents\[Informe.xlsx]
   PUSH_INTERVAL_SECONDS=5
+  FORMAT_REFRESH_SECONDS=3600
   EXCLUDED_SHEETS=
   ```
-- Ask the client the Excel filename before you arrive so you can fill `EXCEL_WORKBOOK_NAME` in advance
+- Ask the client the Excel filename and full path before you arrive so you can fill both `EXCEL_WORKBOOK_NAME` and `EXCEL_WORKBOOK_PATH` in advance
+- `EXCEL_WORKBOOK_PATH` is the full path to the file on disk — used to read cell formatting (colors, bold) without any COM calls, so Excel doesn't freeze. Leave blank to disable formatting.
 
 **On the client's PC:**
 
@@ -275,6 +278,8 @@ You can also open **Task Scheduler** (search in Start menu), find `Monex Excel P
 | Login fails with CORS error | `ALLOWED_ORIGINS` in Render doesn't match the frontend URL exactly |
 | Dashboard shows data but Google login doesn't work | `VITE_GOOGLE_CLIENT_ID` is wrong — rebuild the frontend with the correct value |
 | Push script exits immediately | Check `excel_push.log` — usually `SYNC_API_KEY` mismatch (401) or backend URL wrong |
+| Excel freezes / lags during push | Check that `EXCEL_WORKBOOK_PATH` is set — this enables disk-based formatting reads (no COM calls). If already set, the lag is from the value read which is unavoidable but brief. |
+| Formatting (colors/bold) missing in dashboard | `EXCEL_WORKBOOK_PATH` is blank or incorrect — set it to the full path of the Excel file |
 | xlwings can't find Excel | Excel must be open and the workbook must be loaded before the script runs |
 | xlwings COM error on startup | Re-run the pywin32 post-install step (Step 7.4) |
 | Task Scheduler task doesn't appear | `registrar_tarea.bat` was not run as administrator |

@@ -179,7 +179,7 @@ npm run dev
 - ✅ Cell formatting: bold, background color, font color from Excel carried through to frontend via `__fmt__` field in row data.
 - ✅ Source sheet tracking: `source_sheet` column in DB, sidebar groups tables by source sheet.
 - ✅ Sheet order preserved: `position` column in DB, sidebar respects Excel sheet order + supports drag-reorder.
-- ✅ Formatting read cache: xlwings formatting re-read every N cycles (`FORMAT_REFRESH_CYCLES`, default 20) instead of every push — perf improvement.
+- ✅ Formatting read from disk: cell formatting (bold/bg/color) read from the `.xlsx` file on disk via openpyxl at startup — zero COM calls for formatting, Excel never freezes. Refreshes every `FORMAT_REFRESH_SECONDS` (default 3600). `EXCEL_WORKBOOK_PATH` in `.env` points to the file. If blank, formatting is disabled but data still pushes.
 - ✅ Number alignment: numeric cells right-aligned in the frontend table.
 - ✅ Task Scheduler auto-start: `sync/excel_push_task.xml` — starts 30s after login via `pythonw.exe` (no console), repeats every 30min as crash-guard, restarts up to 10× on failure. `PLACEHOLDER_SYNC_DIR` replaced by installer. Fixed `pythonw` startup crash.
 
